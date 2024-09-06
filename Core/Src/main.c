@@ -29,7 +29,7 @@
 #include "can_bsp.h"
 #include "motor.h"
 #include "usbd_cdc_if.h"
-#include "pid.h"
+#include "pd.h"
 #include "stdio.h"
 
 /* USER CODE END Includes */
@@ -55,15 +55,16 @@
 // float pos_des = 0.0;
 // static int sign = 1;
 // static int spd_des = 0;
-static int pos_des = 60;
-static MotorTxCmd* motor_cmd_ptr;
-static int flag = 0;
-static uint8_t* motor_id_ptr;
-static MotorRxMsg* motor_msg_ptr;
+static int            pos_des = 1;  // [rad]
+static MotorTxCmd*    motor_cmd_ptr;
+static int            flag = 0;
+static uint8_t*       motor_id_ptr;
+static MotorRxMsg*    motor_msg_ptr;
 static MotorFeedback* motor_fb_ptr;
-static char output_str[80] = {0};
-static uint16_t can_reid = 0;
-static MotorRxMsg buf;
+static PDStruct*      motor_fp_pd_ptr; // motor force-position PD Pointer
+static uint16_t       can_reid = 0;
+static MotorRxMsg     buf;
+static uint32_t       rx_cnt[3] = {0, 0, 0};
 
 /* USER CODE END PV */
 
@@ -114,16 +115,19 @@ int main(void)
   MX_FDCAN1_Init();
   MX_TIM6_Init();
   MX_USB_DEVICE_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
   can_bsp_init();
   motor_id_ptr = motor_get_id_ptr();
   motor_msg_ptr = motor_msgs_init();
   motor_cmd_ptr = motor_cmds_init();
   motor_fb_ptr = motor_feedback_init();
-  HAL_Delay(999);
+  motor_fp_pd_ptr = pds_init();
+  HAL_Delay(1999);
   motor_enable();
   HAL_Delay(999);
   HAL_TIM_Base_Start_IT(&htim6);
+  HAL_TIM_Base_Start_IT(&htim7);
 
   /* USER CODE END 2 */
 
@@ -132,15 +136,14 @@ int main(void)
   while (1)
   {
     HAL_Delay(999);
-    if(pos_des == 60)
+    if(pos_des == 1)
     {
-      pos_des = -60;
+      pos_des = -1;
     }
-    else if(pos_des == -60)
+    else if(pos_des == -1)
     {
-      pos_des = 60;
+      pos_des = 1;
     }
-    printf("cnt_encoder: %d \r\n", motor_msg_ptr[2].cnt_encoder);
     // printf("feedback angle: %.2f \r\n", motor_fb_ptr[2].angle);
     /* USER CODE END WHILE */
 
@@ -209,28 +212,66 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+/**
+ * @brief   send command to motor, callback for TIM6
+ * @details the frequency of this function is 300us, which means each motor will receive its cmd every 900us.
+ * @return  none
+ */
+static void send_cmd()
+{
+  if(flag == 0)
+  {
+      // double current0 = pd_calc_output(&motor_fp_pd_ptr[0]);
+      motor_control_position(&motor_cmd_ptr[0], motor_id_ptr[0], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
+      // motor_control_current(&motor_cmd_ptr[0], motor_id_ptr[0], current0, 20000);
+      flag = 1;
+  }
+  else if(flag == 1)
+  {
+      // double current1 = pd_calc_output(&motor_fp_pd_ptr[1]);
+      motor_control_position(&motor_cmd_ptr[1], motor_id_ptr[1], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
+      // motor_control_current(&motor_cmd_ptr[1], motor_id_ptr[1], current1, 20000);
+      flag = 2;
+  }
+  else if(flag == 2)
+  {
+      // double current2 = pd_calc_output(&motor_fp_pd_ptr[2]);
+      motor_control_position(&motor_cmd_ptr[2], motor_id_ptr[2], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
+      // motor_control_current(&motor_cmd_ptr[2], motor_id_ptr[2], current2, 20000);
+      flag = 0;
+  }
+}
+/**
+ * @brief   500Hz TIM7 callback function.
+ * @details update motor pd parameters
+ * 
+ */
+static void update_motor_pd_params()
+{
+  for(int i = 0; i < MOTOR_NUM; i++)
+  {
+    motor_fp_pd_ptr[i].kp = FP_KP;
+    motor_fp_pd_ptr[i].kd = FP_KD;
+    motor_fp_pd_ptr[i].pos_target = pos_des;
+  }
+  printf("rx_cnt: %d,%d,%d\r\n", rx_cnt[0], rx_cnt[1], rx_cnt[2]);
+}
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) // 300us
 {
   if(htim->Instance == TIM6)
   {
-    if(flag == 0)
-    {
-      motor_control_position(&motor_cmd_ptr[0], motor_id_ptr[0], (int32_t)(pos_des*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 300, 15000, 0);
-      flag = 1;
-    }
-    else if(flag == 1)
-    {
-      motor_control_position(&motor_cmd_ptr[1], motor_id_ptr[1], (int32_t)(pos_des*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 300, 15000, 0);
-      flag = 2;
-    }
-    else if(flag == 2)
-    {
-      motor_control_position(&motor_cmd_ptr[2], motor_id_ptr[2], (int32_t)(pos_des*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 300, 15000, 0);
-      flag = 0;
-    }
+    send_cmd();
+  }
+  else if(htim->Instance == TIM7)
+  {
+    update_motor_pd_params();
   }
 }
-
+/**
+ * @brief   callback function for FDCAN1 RX FIFO0
+ * @details receive motor feedback, update pd error
+ * 
+ */
 void fdcan1_rx_callback(void)
 {
 	FDCAN_RxHeaderTypeDef pRxHeader;
@@ -240,8 +281,11 @@ void fdcan1_rx_callback(void)
 	if(pRxHeader.Identifier == 0x789) // ID of response message is 0x789
 	{
 		can_reid = buf.label[1]; // get the motor id
-		memcpy(&motor_msg_ptr[can_reid-1], &buf, sizeof(MotorRxMsg)); // copy the received message to the corresponding motor message pointer
-    motor_update_feedback(motor_msg_ptr, motor_fb_ptr);
+    rx_cnt[can_reid-1]++; // update the receive count of the motor
+		// memcpy(&motor_msg_ptr[can_reid-1], &buf, sizeof(MotorRxMsg)); // copy the received message to the corresponding motor message pointer
+    // motor_update_feedback(motor_msg_ptr, motor_fb_ptr);
+    // motor_pd_update_real_value(motor_fp_pd_ptr, motor_fb_ptr);
+    
 	}
 }
 /**

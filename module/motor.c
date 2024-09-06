@@ -64,8 +64,9 @@ void motor_update_feedback(MotorRxMsg *motor_msg, MotorFeedback *motor_fb)
     for(int i=0; i<MOTOR_NUM; i++)
     {
         motor_fb[i].angle = motor_msg[i].cnt_encoder / (100.0 * MOTOR_REDUCTION_RATIO);
-        motor_fb[i].angle = motor_fb[i].angle * M_PI / 180.0; // convert to radian
-        motor_fb[i].speed = motor_msg[i].spd_motor / MOTOR_REDUCTION_RATIO;
+        motor_fb[i].angle = motor_fb[i].angle * M_PI / 180.0; // convert to rad
+        motor_fb[i].speed = motor_msg[i].spd_motor / MOTOR_REDUCTION_RATIO; // convert to output axis[rpm]
+        motor_fb[i].speed = motor_fb[i].speed * 2 * M_PI / 60.0; // convert to rad/s
         motor_fb[i].current = motor_msg[i].cur_motor;
     }
 }
@@ -92,12 +93,12 @@ MotorTxCmd* motor_cmds_init()
     motor_disable();
     HAL_Delay(0);
     // set spd-loop param
-    for(int i=0; i<MOTOR_NUM; i++)
-    {
-        motor_fill_cmd(&motor_cmd[i], motor_id[i], 0x01, 0x02, 0, 10, 50, 0, 3, 20000, 0);
-        fdcanx_send_data(&hfdcan1, motor_id[i], (uint8_t*)&motor_cmd[i], sizeof(motor_cmd[i]));
-        HAL_Delay(0);
-    }
+    // for(int i=0; i<MOTOR_NUM; i++)
+    // {
+    //     motor_fill_cmd(&motor_cmd[i], motor_id[i], 0x01, 0x02, 0, 10, 50, 0, 3, 20000, 0);
+    //     fdcanx_send_data(&hfdcan1, motor_id[i], (uint8_t*)&motor_cmd[i], sizeof(motor_cmd[i]));
+    //     HAL_Delay(0);
+    // }
     //todo: set current pos as 0
     
     
@@ -155,5 +156,20 @@ void motor_control_position(MotorTxCmd *motor_cmd, uint8_t id, int32_t des_value
 {
     motor_fill_cmd(motor_cmd, id, 0x01, 0x03, des_value, kp, ki, kd, s, max_current, num_para);
     fdcanx_send_data(&hfdcan1, motor_cmd->id, (uint8_t*)motor_cmd, sizeof(*motor_cmd));
-}                            
+}
 
+void motor_control_current(MotorTxCmd *motor_cmd, uint8_t id, int32_t des_value, int32_t max_current)
+{
+    motor_fill_cmd(motor_cmd, id, 0x01, 0x01, des_value, 0, 0, 0, 0, max_current, -1); // use default current-loop param
+    fdcanx_send_data(&hfdcan1, motor_cmd->id, (uint8_t*)motor_cmd, sizeof(*motor_cmd));
+}
+
+void motor_pd_update_real_value(PDStruct *motor_fd_pd, MotorFeedback *motor_fb)
+{
+    for(int i = 0; i < MOTOR_NUM; i++)
+    {
+        double pos_real = motor_fb[i].angle; // rad
+        double vel_real = motor_fb[i].speed; // rad/s
+        pd_update_real_value(&motor_fd_pd[i], pos_real, vel_real);
+    }
+}

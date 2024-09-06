@@ -3,10 +3,8 @@
 
 #include "stm32h7xx_hal.h"
 #include "can_bsp.h"
-
-#define M_PI	  3.14159265358979323846
-#define MOTOR_NUM 3
-#define MOTOR_REDUCTION_RATIO 18.0f
+#include "param.h"
+#include "pd.h"
 
 typedef struct __packed
 {
@@ -78,5 +76,8 @@ void motor_control_speed(MotorTxCmd *motor_cmd, uint8_t id, int32_t des_value, f
                          float ki, float kd, float s, int32_t max_current, int8_t num_para);
 void motor_control_position(MotorTxCmd *motor_cmd, uint8_t id, int32_t des_value, float kp, 
                             float ki, float kd, float s, int32_t max_current, int8_t num_para);
+void motor_control_current(MotorTxCmd *motor_cmd, uint8_t id, int32_t des_value, int32_t max_current);
+
+void motor_pd_update_real_value(PDStruct* motor_fd_pd, MotorFeedback* motor_fb);
 
 #endif // __MOTOR_H__
