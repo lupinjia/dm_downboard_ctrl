@@ -24,7 +24,7 @@ typedef struct __packed
     uint8_t end;
     uint8_t check;
     uint8_t redundancy[12];
-}MotorTxCmd;
+}MotorTxCmd; // 48 Bytes
 
 typedef struct
 {
@@ -51,7 +51,8 @@ typedef struct
     int16_t value_out3;
     int8_t  value_out4;
     uint8_t value_out5;
-}MotorRxMsg;  // Raw Message from Motor Driver Board
+    uint8_t redundancy[8];
+}MotorRxMsg;  // Raw Message from Motor Driver Board(48 Bytes)
 
 typedef struct
 {

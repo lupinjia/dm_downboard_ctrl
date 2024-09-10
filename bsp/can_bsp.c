@@ -54,35 +54,25 @@ void can_filter_init(void)
 **/
 uint8_t fdcanx_send_data(FDCAN_HandleTypeDef *hfdcan, uint16_t id, uint8_t *data, uint32_t len)
 {	
+	// uint16_t wait = 0xFFFF;
     FDCAN_TxHeaderTypeDef pTxHeader;
     pTxHeader.Identifier=id;
     pTxHeader.IdType=FDCAN_STANDARD_ID;
     pTxHeader.TxFrameType=FDCAN_DATA_FRAME;
-	
-	if(len<=8)
-		pTxHeader.DataLength = len;
-	else if(len<=12)
-		pTxHeader.DataLength = FDCAN_DLC_BYTES_12;
-	else if(len<=16)
-		pTxHeader.DataLength = FDCAN_DLC_BYTES_16;
-	else if(len<=20)
-		pTxHeader.DataLength = FDCAN_DLC_BYTES_20;
-	else if(len<=24)
-		pTxHeader.DataLength = FDCAN_DLC_BYTES_24;
-	else if(len<=32)
-		pTxHeader.DataLength = FDCAN_DLC_BYTES_32;
-	else if(len<=48)
-		pTxHeader.DataLength = FDCAN_DLC_BYTES_48;
-	else if(len<=64)
-		pTxHeader.DataLength = FDCAN_DLC_BYTES_64;
-	
+	pTxHeader.DataLength = FDCAN_DLC_BYTES_48;
     pTxHeader.ErrorStateIndicator=FDCAN_ESI_ACTIVE;
     pTxHeader.BitRateSwitch=FDCAN_BRS_ON;
     pTxHeader.FDFormat=FDCAN_FD_CAN;
     pTxHeader.TxEventFifoControl=FDCAN_NO_TX_EVENTS;
     pTxHeader.MessageMarker=0;
- 
+	// while(HAL_FDCAN_GetTxFifoFreeLevel(hfdcan)==0)
+	// {
+	// 	wait--;
+	// 	if(wait == 0)
+	// 		break;
+	// }
 	if(HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &pTxHeader, data)!=HAL_OK) 
 		return 1;
+
 	return 0;	
 }

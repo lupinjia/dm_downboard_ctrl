@@ -63,8 +63,8 @@ static MotorRxMsg*    motor_msg_ptr;
 static MotorFeedback* motor_fb_ptr;
 static PDStruct*      motor_fp_pd_ptr; // motor force-position PD Pointer
 static uint16_t       can_reid = 0;
-static MotorRxMsg     buf;
-static uint32_t       rx_cnt[3] = {0, 0, 0};
+static MotorRxMsg     buf; //! buf不能小于48字节, 否则数组溢出会导致错�?, 程序跑飞
+static double         current[3] = {0, 0, 0};
 
 /* USER CODE END PV */
 
@@ -221,23 +221,24 @@ static void send_cmd()
 {
   if(flag == 0)
   {
-      // double current0 = pd_calc_output(&motor_fp_pd_ptr[0]);
-      motor_control_position(&motor_cmd_ptr[0], motor_id_ptr[0], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
-      // motor_control_current(&motor_cmd_ptr[0], motor_id_ptr[0], current0, 20000);
+      current[flag] = pd_calc_output(&motor_fp_pd_ptr[0]);
+      // motor_control_position(&motor_cmd_ptr[0], motor_id_ptr[0], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
+      motor_control_current(&motor_cmd_ptr[0], motor_id_ptr[0], current[flag], 20000);
       flag = 1;
   }
   else if(flag == 1)
   {
-      // double current1 = pd_calc_output(&motor_fp_pd_ptr[1]);
-      motor_control_position(&motor_cmd_ptr[1], motor_id_ptr[1], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
-      // motor_control_current(&motor_cmd_ptr[1], motor_id_ptr[1], current1, 20000);
+      current[flag] = pd_calc_output(&motor_fp_pd_ptr[1]);
+      // motor_control_position(&motor_cmd_ptr[1], motor_id_ptr[1], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
+      motor_control_current(&motor_cmd_ptr[1], motor_id_ptr[1], current[flag], 20000);
       flag = 2;
   }
   else if(flag == 2)
   {
-      // double current2 = pd_calc_output(&motor_fp_pd_ptr[2]);
-      motor_control_position(&motor_cmd_ptr[2], motor_id_ptr[2], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
-      // motor_control_current(&motor_cmd_ptr[2], motor_id_ptr[2], current2, 20000);
+      
+      current[flag] = pd_calc_output(&motor_fp_pd_ptr[2]);
+      // motor_control_position(&motor_cmd_ptr[2], motor_id_ptr[2], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
+      motor_control_current(&motor_cmd_ptr[2], motor_id_ptr[2], current[flag], 20000);
       flag = 0;
   }
 }
@@ -254,7 +255,7 @@ static void update_motor_pd_params()
     motor_fp_pd_ptr[i].kd = FP_KD;
     motor_fp_pd_ptr[i].pos_target = pos_des;
   }
-  printf("rx_cnt: %d,%d,%d\r\n", rx_cnt[0], rx_cnt[1], rx_cnt[2]);
+  printf("%.2f,%.2f,%.2f\r\n", current[0], current[1], current[2]);
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) // 300us
 {
@@ -280,11 +281,11 @@ void fdcan1_rx_callback(void)
 	}
 	if(pRxHeader.Identifier == 0x789) // ID of response message is 0x789
 	{
-		can_reid = buf.label[1]; // get the motor id
-    rx_cnt[can_reid-1]++; // update the receive count of the motor
-		// memcpy(&motor_msg_ptr[can_reid-1], &buf, sizeof(MotorRxMsg)); // copy the received message to the corresponding motor message pointer
-    // motor_update_feedback(motor_msg_ptr, motor_fb_ptr);
-    // motor_pd_update_real_value(motor_fp_pd_ptr, motor_fb_ptr);
+		can_reid = buf.label[1];
+    // rx_cnt[can_reid-1]++; // update the receive count of the motor
+		memcpy(&motor_msg_ptr[can_reid-1], &buf, sizeof(MotorRxMsg)); // copy the received message to the corresponding motor message pointer
+    motor_update_feedback(motor_msg_ptr, motor_fb_ptr);
+    motor_pd_update_real_value(motor_fp_pd_ptr, motor_fb_ptr);
     
 	}
 }
