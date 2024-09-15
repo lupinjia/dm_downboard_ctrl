@@ -92,16 +92,6 @@ MotorTxCmd* motor_cmds_init()
 {
     motor_disable();
     HAL_Delay(0);
-    // set spd-loop param
-    // for(int i=0; i<MOTOR_NUM; i++)
-    // {
-    //     motor_fill_cmd(&motor_cmd[i], motor_id[i], 0x01, 0x02, 0, 10, 50, 0, 3, 20000, 0);
-    //     fdcanx_send_data(&hfdcan1, motor_id[i], (uint8_t*)&motor_cmd[i], sizeof(motor_cmd[i]));
-    //     HAL_Delay(0);
-    // }
-    //todo: set current pos as 0
-    
-    
     return motor_cmd;
 }
 
@@ -164,12 +154,12 @@ void motor_control_current(MotorTxCmd *motor_cmd, uint8_t id, int32_t des_value,
     fdcanx_send_data(&hfdcan1, motor_cmd->id, (uint8_t*)motor_cmd, sizeof(*motor_cmd));
 }
 
-void motor_pd_update_real_value(PDStruct *motor_fd_pd, MotorFeedback *motor_fb)
+void motor_pd_update_real_value(PDStruct *motor_fp_pd, MotorFeedback *motor_fb)
 {
     for(int i = 0; i < MOTOR_NUM; i++)
     {
         double pos_real = motor_fb[i].angle; // rad
         double vel_real = motor_fb[i].speed; // rad/s
-        pd_update_real_value(&motor_fd_pd[i], pos_real, vel_real);
+        pd_update_real_value(&motor_fp_pd[i], pos_real, vel_real);
     }
 }

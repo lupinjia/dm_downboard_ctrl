@@ -29,7 +29,7 @@
 #include "can_bsp.h"
 #include "motor.h"
 #include "usbd_cdc_if.h"
-#include "pd.h"
+#include "force_position.h"
 #include "stdio.h"
 
 /* USER CODE END Includes */
@@ -52,10 +52,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-// float pos_des = 0.0;
-// static int sign = 1;
-// static int spd_des = 0;
-static int            pos_des = 1;  // [rad]
+static float          pos_des[3] = {0, 0.2, -0.2};  // [rad]
 static MotorTxCmd*    motor_cmd_ptr;
 static int            flag = 0;
 static uint8_t*       motor_id_ptr;
@@ -63,8 +60,10 @@ static MotorRxMsg*    motor_msg_ptr;
 static MotorFeedback* motor_fb_ptr;
 static PDStruct*      motor_fp_pd_ptr; // motor force-position PD Pointer
 static uint16_t       can_reid = 0;
-static MotorRxMsg     buf; //! buf不能小于48字节, 否则数组溢出会导致错�?, 程序跑飞
-static double         current[3] = {0, 0, 0};
+static MotorRxMsg     buf;             //! buf不能小于48字节, 否则数组溢出会导致错�?, 程序跑飞
+static float          current[3] = {0, 0, 0};
+static float          kp[3] = {2500.0, 3200.0, 5000.0};
+static float          kd[3] = {90.0, 220.0, 150.0};
 
 /* USER CODE END PV */
 
@@ -122,7 +121,7 @@ int main(void)
   motor_msg_ptr = motor_msgs_init();
   motor_cmd_ptr = motor_cmds_init();
   motor_fb_ptr = motor_feedback_init();
-  motor_fp_pd_ptr = pds_init();
+  motor_fp_pd_ptr = fp_init();
   HAL_Delay(1999);
   motor_enable();
   HAL_Delay(999);
@@ -136,15 +135,12 @@ int main(void)
   while (1)
   {
     HAL_Delay(999);
-    if(pos_des == 1)
-    {
-      pos_des = -1;
-    }
-    else if(pos_des == -1)
-    {
-      pos_des = 1;
-    }
-    // printf("feedback angle: %.2f \r\n", motor_fb_ptr[2].angle);
+    // if(pos_des[0] > -0.2) pos_des[0] = -0.3;
+    // else if(pos_des[0] < 0.2) pos_des[0] = 0.3;
+    // if(pos_des[1] > -0.1) pos_des[1] = -0.2;
+    // else if(pos_des[1] < 0.1) pos_des[1] = 0.2;
+    if(pos_des[2] > -0.5) pos_des[2] = -0.6;
+    else if(pos_des[2] < -0.3) pos_des[2] = -0.2;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -221,9 +217,9 @@ static void send_cmd()
 {
   if(flag == 0)
   {
-      current[flag] = pd_calc_output(&motor_fp_pd_ptr[0]);
-      // motor_control_position(&motor_cmd_ptr[0], motor_id_ptr[0], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
-      motor_control_current(&motor_cmd_ptr[0], motor_id_ptr[0], current[flag], 20000);
+      // current[flag] = pd_calc_output(&motor_fp_pd_ptr[0]);
+      motor_control_position(&motor_cmd_ptr[0], motor_id_ptr[0], (int32_t)(pos_des[0]*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 20000, 0);
+      // motor_control_current(&motor_cmd_ptr[0], motor_id_ptr[0], current[flag], 20000);
       flag = 1;
   }
   else if(flag == 1)
@@ -251,11 +247,13 @@ static void update_motor_pd_params()
 {
   for(int i = 0; i < MOTOR_NUM; i++)
   {
-    motor_fp_pd_ptr[i].kp = FP_KP;
-    motor_fp_pd_ptr[i].kd = FP_KD;
-    motor_fp_pd_ptr[i].pos_target = pos_des;
+    fp_control_pos(&motor_fp_pd_ptr[i], kp[i], kd[i], pos_des[i], 0, MAX_CURRENT);
+    // fp_damp(&motor_fp_pd_ptr[i], FP_DAMP_KD, MAX_CURRENT);
   }
-  printf("%.2f,%.2f,%.2f\r\n", current[0], current[1], current[2]);
+  // printf("%.2f,%.2f,%.2f\r\n", pos_des[0], pos_des[1], pos_des[2]);
+  // printf("%.2f,%.2f,%.2f\n", motor_fp_pd_ptr[0].value_real, motor_fp_pd_ptr[1].value_real, motor_fp_pd_ptr[2].value_real);
+  printf("%.2f,%.2f\n", pos_des[2], motor_fp_pd_ptr[2].value_real);
+  // printf("%.2f,%.2f,%.2f\r\n", current[0], current[1], current[2]);
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) // 300us
 {
@@ -282,11 +280,9 @@ void fdcan1_rx_callback(void)
 	if(pRxHeader.Identifier == 0x789) // ID of response message is 0x789
 	{
 		can_reid = buf.label[1];
-    // rx_cnt[can_reid-1]++; // update the receive count of the motor
 		memcpy(&motor_msg_ptr[can_reid-1], &buf, sizeof(MotorRxMsg)); // copy the received message to the corresponding motor message pointer
     motor_update_feedback(motor_msg_ptr, motor_fb_ptr);
     motor_pd_update_real_value(motor_fp_pd_ptr, motor_fb_ptr);
-    
 	}
 }
 /**

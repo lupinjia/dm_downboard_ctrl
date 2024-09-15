@@ -69,6 +69,7 @@ bsp/can_bsp.c \
 bsp/delay.c \
 module/motor.c \
 algorithm/pd.c \
+algorithm/force_position.c \
 USB_DEVICE/App/usb_device.c \
 USB_DEVICE/App/usbd_desc.c \
 USB_DEVICE/App/usbd_cdc_if.c \
