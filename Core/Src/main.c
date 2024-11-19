@@ -21,7 +21,8 @@
 #include "fdcan.h"
 #include "memorymap.h"
 #include "tim.h"
-#include "usb_device.h"
+#include "usart.h"
+#include "usb_otg.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -60,7 +61,7 @@ static MotorRxMsg*    motor_msg_ptr;
 static MotorFeedback* motor_fb_ptr;
 static PDStruct*      motor_fp_pd_ptr; // motor force-position PD Pointer
 static uint16_t       can_reid = 0;
-static MotorRxMsg     buf;             //! buf不能小于48字节, 否则数组溢出会导致错�?, 程序跑飞
+static MotorRxMsg     buf;             //! buf不能小于48字节, 否则数组溢出会导致错�??, 程序跑飞
 static float          current[3] = {0, 0, 0};
 static float          kp[3] = {2500.0, 3200.0, 5000.0};
 static float          kd[3] = {90.0, 220.0, 150.0};
@@ -113,8 +114,9 @@ int main(void)
   MX_GPIO_Init();
   MX_FDCAN1_Init();
   MX_TIM6_Init();
-  MX_USB_DEVICE_Init();
   MX_TIM7_Init();
+  MX_UART5_Init();
+  MX_USB_OTG_HS_HCD_Init();
   /* USER CODE BEGIN 2 */
   can_bsp_init();
   motor_id_ptr = motor_get_id_ptr();
