@@ -8,5 +8,7 @@
 // #define FP_KP                 1000.0f
 // #define FP_KD                 90.0f
 #define FP_DAMP_KD            10.0f
+#define UART5_RX_BUFFER_SIZE  25   // [byte], uart5 for sbus receive
+#define TORQUE_CONSTANT       1.5f // [Nm/A], to convert torque to current
 
 #endif

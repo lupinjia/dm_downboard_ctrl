@@ -18,20 +18,16 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "fdcan.h"
 #include "memorymap.h"
-#include "tim.h"
 #include "usart.h"
-#include "usb_otg.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "can_bsp.h"
-#include "motor.h"
-#include "usbd_cdc_if.h"
-#include "force_position.h"
-#include "stdio.h"
+#include <string.h>
+#include "param.h"
+#include "sbus.h"
+// #include "stdio.h"
 
 /* USER CODE END Includes */
 
@@ -53,18 +49,20 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-static float          pos_des[3] = {0, 0.2, -0.2};  // [rad]
-static MotorTxCmd*    motor_cmd_ptr;
-static int            flag = 0;
-static uint8_t*       motor_id_ptr;
-static MotorRxMsg*    motor_msg_ptr;
-static MotorFeedback* motor_fb_ptr;
-static PDStruct*      motor_fp_pd_ptr; // motor force-position PD Pointer
-static uint16_t       can_reid = 0;
-static MotorRxMsg     buf;             //! buf不能小于48字节, 否则数组溢出会导致错�??, 程序跑飞
-static float          current[3] = {0, 0, 0};
-static float          kp[3] = {2500.0, 3200.0, 5000.0};
-static float          kd[3] = {90.0, 220.0, 150.0};
+// static float          pos_des[3] = {0, 0.2, -0.2};  // [rad]
+// static MotorTxCmd*    motor_cmd_ptr;
+// static int            flag = 0;
+// static uint8_t*       motor_id_ptr;
+// static MotorRxMsg*    motor_msg_ptr;
+// static MotorFeedback* motor_fb_ptr;
+// static PDStruct*      motor_fp_pd_ptr; // motor force-position PD Pointer
+// static uint16_t       can_reid = 0;
+// static MotorRxMsg     buf;             //! buf不能小于48字节, 否则数组溢出会导致错�?????, 程序跑飞
+// static float          current[3] = {0, 0, 0};
+// static float          kp[3] = {2500.0, 3200.0, 5000.0};
+// static float          kd[3] = {90.0, 220.0, 150.0};
+static uint8_t*  uart5_rx_buf_ptr;
+static RC_ChannelData rc_data;
 
 /* USER CODE END PV */
 
@@ -77,7 +75,15 @@ static void MPU_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static void init_vars() // init variables
+{
+  uart5_rx_buf_ptr = get_uart5_rx_buf();
+}
 
+static void start_sbus_reception()
+{
+  HAL_UARTEx_ReceiveToIdle_IT(&huart5, uart5_rx_buf_ptr, UART5_RX_BUFFER_SIZE*2);
+}
 /* USER CODE END 0 */
 
 /**
@@ -112,23 +118,21 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_FDCAN1_Init();
-  MX_TIM6_Init();
-  MX_TIM7_Init();
   MX_UART5_Init();
-  MX_USB_OTG_HS_HCD_Init();
   /* USER CODE BEGIN 2 */
-  can_bsp_init();
-  motor_id_ptr = motor_get_id_ptr();
-  motor_msg_ptr = motor_msgs_init();
-  motor_cmd_ptr = motor_cmds_init();
-  motor_fb_ptr = motor_feedback_init();
-  motor_fp_pd_ptr = fp_init();
-  HAL_Delay(1999);
-  motor_enable();
-  HAL_Delay(999);
-  HAL_TIM_Base_Start_IT(&htim6);
-  HAL_TIM_Base_Start_IT(&htim7);
+  init_vars();
+  start_sbus_reception();
+  // can_bsp_init();
+  // motor_id_ptr = motor_get_id_ptr();
+  // motor_msg_ptr = motor_msgs_init();
+  // motor_cmd_ptr = motor_cmds_init();
+  // motor_fb_ptr = motor_feedback_init();
+  // motor_fp_pd_ptr = fp_init();
+  // HAL_Delay(1999);
+  // motor_enable();
+  // HAL_Delay(999);
+  // HAL_TIM_Base_Start_IT(&htim6);
+  // HAL_TIM_Base_Start_IT(&htim7);
 
   /* USER CODE END 2 */
 
@@ -137,12 +141,6 @@ int main(void)
   while (1)
   {
     HAL_Delay(999);
-    // if(pos_des[0] > -0.2) pos_des[0] = -0.3;
-    // else if(pos_des[0] < 0.2) pos_des[0] = 0.3;
-    // if(pos_des[1] > -0.1) pos_des[1] = -0.2;
-    // else if(pos_des[1] < 0.1) pos_des[1] = 0.2;
-    if(pos_des[2] > -0.5) pos_des[2] = -0.6;
-    else if(pos_des[2] < -0.3) pos_des[2] = -0.2;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -172,9 +170,8 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 2;
@@ -215,96 +212,111 @@ void SystemClock_Config(void)
  * @details the frequency of this function is 300us, which means each motor will receive its cmd every 900us.
  * @return  none
  */
-static void send_cmd()
-{
-  if(flag == 0)
-  {
-      // current[flag] = pd_calc_output(&motor_fp_pd_ptr[0]);
-      motor_control_position(&motor_cmd_ptr[0], motor_id_ptr[0], (int32_t)(pos_des[0]*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 20000, 0);
-      // motor_control_current(&motor_cmd_ptr[0], motor_id_ptr[0], current[flag], 20000);
-      flag = 1;
-  }
-  else if(flag == 1)
-  {
-      current[flag] = pd_calc_output(&motor_fp_pd_ptr[1]);
-      // motor_control_position(&motor_cmd_ptr[1], motor_id_ptr[1], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
-      motor_control_current(&motor_cmd_ptr[1], motor_id_ptr[1], current[flag], 20000);
-      flag = 2;
-  }
-  else if(flag == 2)
-  {
+// static void send_cmd()
+// {
+//   if(flag == 0)
+//   {
+//       // current[flag] = pd_calc_output(&motor_fp_pd_ptr[0]);
+//       motor_control_position(&motor_cmd_ptr[0], motor_id_ptr[0], (int32_t)(pos_des[0]*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 20000, 0);
+//       // motor_control_current(&motor_cmd_ptr[0], motor_id_ptr[0], current[flag], 20000);
+//       flag = 1;
+//   }
+//   else if(flag == 1)
+//   {
+//       current[flag] = pd_calc_output(&motor_fp_pd_ptr[1]);
+//       // motor_control_position(&motor_cmd_ptr[1], motor_id_ptr[1], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
+//       motor_control_current(&motor_cmd_ptr[1], motor_id_ptr[1], current[flag], 20000);
+//       flag = 2;
+//   }
+//   else if(flag == 2)
+//   {
       
-      current[flag] = pd_calc_output(&motor_fp_pd_ptr[2]);
-      // motor_control_position(&motor_cmd_ptr[2], motor_id_ptr[2], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
-      motor_control_current(&motor_cmd_ptr[2], motor_id_ptr[2], current[flag], 20000);
-      flag = 0;
-  }
-}
-/**
- * @brief   500Hz TIM7 callback function.
- * @details update motor pd parameters
- * 
- */
-static void update_motor_pd_params()
-{
-  for(int i = 0; i < MOTOR_NUM; i++)
-  {
-    fp_control_pos(&motor_fp_pd_ptr[i], kp[i], kd[i], pos_des[i], 0, MAX_CURRENT);
-    // fp_damp(&motor_fp_pd_ptr[i], FP_DAMP_KD, MAX_CURRENT);
-  }
-  // printf("%.2f,%.2f,%.2f\r\n", pos_des[0], pos_des[1], pos_des[2]);
-  // printf("%.2f,%.2f,%.2f\n", motor_fp_pd_ptr[0].value_real, motor_fp_pd_ptr[1].value_real, motor_fp_pd_ptr[2].value_real);
-  printf("%.2f,%.2f\n", pos_des[2], motor_fp_pd_ptr[2].value_real);
-  // printf("%.2f,%.2f,%.2f\r\n", current[0], current[1], current[2]);
-}
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) // 300us
-{
-  if(htim->Instance == TIM6)
-  {
-    send_cmd();
-  }
-  else if(htim->Instance == TIM7)
-  {
-    update_motor_pd_params();
-  }
-}
+//       current[flag] = pd_calc_output(&motor_fp_pd_ptr[2]);
+//       // motor_control_position(&motor_cmd_ptr[2], motor_id_ptr[2], (int32_t)(pos_des*180/M_PI*100*MOTOR_REDUCTION_RATIO), 1.0, 0, 0.2, 333, 15000, 0);
+//       motor_control_current(&motor_cmd_ptr[2], motor_id_ptr[2], current[flag], 20000);
+//       flag = 0;
+//   }
+// }
+// /**
+//  * @brief   500Hz TIM7 callback function.
+//  * @details update motor pd parameters
+//  * 
+//  */
+// static void update_motor_pd_params()
+// {
+//   for(int i = 0; i < MOTOR_NUM; i++)
+//   {
+//     fp_control_pos(&motor_fp_pd_ptr[i], kp[i], kd[i], pos_des[i], 0, MAX_CURRENT);
+//     // fp_damp(&motor_fp_pd_ptr[i], FP_DAMP_KD, MAX_CURRENT);
+//   }
+//   // printf("%.2f,%.2f,%.2f\r\n", pos_des[0], pos_des[1], pos_des[2]);
+//   // printf("%.2f,%.2f,%.2f\n", motor_fp_pd_ptr[0].value_real, motor_fp_pd_ptr[1].value_real, motor_fp_pd_ptr[2].value_real);
+//   printf("%.2f,%.2f\n", pos_des[2], motor_fp_pd_ptr[2].value_real);
+//   // printf("%.2f,%.2f,%.2f\r\n", current[0], current[1], current[2]);
+// }
+// void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) // 300us
+// {
+//   if(htim->Instance == TIM6)
+//   {
+//     send_cmd();
+//   }
+//   else if(htim->Instance == TIM7)
+//   {
+//     update_motor_pd_params();
+//   }
+// }
 /**
  * @brief   callback function for FDCAN1 RX FIFO0
  * @details receive motor feedback, update pd error
  * 
  */
-void fdcan1_rx_callback(void)
-{
-	FDCAN_RxHeaderTypeDef pRxHeader;
-	if(HAL_FDCAN_GetRxMessage(&hfdcan1, FDCAN_RX_FIFO0, &pRxHeader, (uint8_t*)&buf)==HAL_OK)
-	{
-	}
-	if(pRxHeader.Identifier == 0x789) // ID of response message is 0x789
-	{
-		can_reid = buf.label[1];
-		memcpy(&motor_msg_ptr[can_reid-1], &buf, sizeof(MotorRxMsg)); // copy the received message to the corresponding motor message pointer
-    motor_update_feedback(motor_msg_ptr, motor_fb_ptr);
-    motor_pd_update_real_value(motor_fp_pd_ptr, motor_fb_ptr);
-	}
-}
-/**
- * @brief FDCAN1 RX FIFO0 Callback function.
- * 
- * @param hfdcan 
- * @param RxFifo0ITs 
- */
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
-{
-    if (hfdcan == &hfdcan1)
-    {
-		  fdcan1_rx_callback();
-    }
-}
+// void fdcan1_rx_callback(void)
+// {void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
+// {
+//     if (hfdcan == &hfdcan1)
+//     {
+// 		  fdcan1_rx_callback();
+//     }
+// }
+// 	FDCAN_RxHeaderTypeDef pRxHeader;
+// 	if(HAL_FDCAN_GetRxMessage(&hfdcan1, FDCAN_RX_FIFO0, &pRxHeader, (uint8_t*)&buf)==HAL_OK)
+// 	{
+// 	}
+// 	if(pRxHeader.Identifier == 0x789) // ID of response message is 0x789
+// 	{
+// 		can_reid = buf.label[1];
+// 		memcpy(&motor_msg_ptr[can_reid-1], &buf, sizeof(MotorRxMsg)); // copy the received message to the corresponding motor message pointer
+//     motor_update_feedback(motor_msg_ptr, motor_fb_ptr);
+//     motor_pd_update_real_value(motor_fp_pd_ptr, motor_fb_ptr);
+// 	}
+// }
+// /**
+//  * @brief FDCAN1 RX FIFO0 Callback function.
+//  * 
+//  * @param hfdcan 
+//  * @param RxFifo0ITs 
+//  */
+// 
 // retarget printf to USB
-int _write(int fd, char *ptr, int len)
+// int _write(int fd, char *ptr, int len)
+// {
+//     CDC_Transmit_HS((uint8_t*)ptr, len);
+//     return len;
+// }
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) // IDLE event callback
 {
-    CDC_Transmit_HS((uint8_t*)ptr, len);
-    return len;
+  if(huart->Instance == UART5)
+  {
+    if (Size <= UART5_RX_BUFFER_SIZE && uart5_rx_buf_ptr[0] == 0x0F) // success
+	  {
+		  sbus_decode(uart5_rx_buf_ptr, &rc_data);
+	  }
+	  else // failed
+	  {
+		  memset(uart5_rx_buf_ptr, 0, UART5_RX_BUFFER_SIZE);
+	  }
+  }
 }
 
 /* USER CODE END 4 */
