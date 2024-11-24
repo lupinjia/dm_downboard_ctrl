@@ -10,8 +10,6 @@
 #ifndef __PD_H__
 #define __PD_H__
 
-
-
 typedef struct
 {   
     double kp;              // Proportional gain

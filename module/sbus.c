@@ -1,6 +1,12 @@
 #include "sbus.h"
+#include "param.h"
+#include "string.h"
+#include "usart.h"
 
 static uint8_t uart5_rx_buf[25] = {0};
+static RC_ChannelData rc_data;
+double  motor_angle_increment[2] = {0.0, 0.0};
+uint8_t selected_motor_id = 1;
 
 static uint8_t convert_switch_value(uint16_t raw_value)
 {
@@ -10,7 +16,7 @@ static uint8_t convert_switch_value(uint16_t raw_value)
     else return 1; // default value
 }
 
-void sbus_decode(uint8_t* rx_buf, RC_ChannelData* channel_data)
+static void sbus_decode(uint8_t* rx_buf, RC_ChannelData* channel_data)
 {
     // decode raw channel data from SBUS buffer
     channel_data->raw_data[0] = (rx_buf[1] | (rx_buf[2] << 8)) & 0x07FF;
@@ -44,7 +50,77 @@ void sbus_decode(uint8_t* rx_buf, RC_ChannelData* channel_data)
     channel_data->processed_data.D = (channel_data->raw_data[10] == RAW_DATA_UPPER_BOUND) ? 1 : 0;
 }
 
-uint8_t* get_uart5_rx_buf()
+uint8_t* sbus_get_uart5_rx_buf()
 {
     return uart5_rx_buf;
+}
+
+RC_ChannelData* sbus_get_rc_channel_data()
+{
+    return &rc_data;
+}
+
+double* sbus_get_motor_angle_increment()
+{
+    return motor_angle_increment;
+}
+
+uint8_t* sbus_get_selected_motor_id()
+{
+    return &selected_motor_id;
+}
+
+void sbus_init()
+{
+//    memset(uart5_rx_buf, 0, UART5_RX_BUFFER_SIZE);
+//    memset(&rc_data, 0, sizeof(RC_ChannelData));
+}
+
+static void process_rc_data()
+{
+    // ly for left motor, ry for right motor
+    motor_angle_increment[0] = ((double)rc_data.processed_data.ly - LEVER_DATA_MEDIAN_VALUE) / LEVER_DATA_MEDIAN_VALUE; // -1.0 ~ 1.0
+    motor_angle_increment[1] = ((double)rc_data.processed_data.ry - LEVER_DATA_MEDIAN_VALUE) / LEVER_DATA_MEDIAN_VALUE; // -1.0 ~ 1.0
+    motor_angle_increment[0] *= 0.5; // -0.5 ~ 0.5
+    motor_angle_increment[1] *= 0.5; // -0.5 ~ 0.5
+    // SA for motor switch
+    switch (rc_data.processed_data.SA)
+    {
+    case 0:
+        selected_motor_id = 1;
+        break;
+    case 1:
+        selected_motor_id = 2;
+        break;
+    case 2:
+        selected_motor_id = 3;
+        break;
+    default:
+        selected_motor_id = 1;
+        break;
+    }
+}
+
+/**
+ * @brief UART5 IDLE event callback function.
+ * @details receive sbus data from remote controller, decode it and update rc_data.
+ * 
+ * @param huart handle of UART
+ * @param Size  size of received data
+ */
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) // IDLE event callback
+{
+    if(huart->Instance == UART5)
+    {
+        if (Size <= UART5_RX_BUFFER_SIZE && uart5_rx_buf[0] == 0x0F) // success
+	      {
+		        sbus_decode(uart5_rx_buf, &rc_data);
+            process_rc_data();
+	      }
+	      else // failed
+	      {
+		        memset(uart5_rx_buf, 0, UART5_RX_BUFFER_SIZE);
+	      }			
+    }
 }

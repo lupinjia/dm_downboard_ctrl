@@ -1,43 +1,54 @@
+#include <string.h>
 #include "force_position.h"
 
-static PDStruct motor_fp_pd[MOTOR_NUM]; // Motor Force Position PD controller
+// kp and kd for each motor
+const static double  kp[3] = {10.0, 10.0, 10.0};
+const static double  kd[3] = {0.5,  0.5,  0.5};
 
-PDStruct* fp_init()
+LegPDs leg_pds;
+static double torque[MOTOR_NUM_PER_LEG*2] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+static int32_t current[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0};
+
+void fp_init()
 {
-    for(int i = 0;i < MOTOR_NUM; i++)
-    {
-        motor_fp_pd[i].kp = 0.0;
-        motor_fp_pd[i].kd = 0.0;
-        motor_fp_pd[i].value_target = 0.0;
-        motor_fp_pd[i].value_real = 0.0;
-        motor_fp_pd[i].value_diff_target = 0.0;
-        motor_fp_pd[i].value_diff_real = 0.0;
-        motor_fp_pd[i].p_out = 0.0;
-        motor_fp_pd[i].d_out = 0.0;
-        motor_fp_pd[i].output = 0.0;
-        motor_fp_pd[i].value_ff = 0.0;
-        motor_fp_pd[i].out_max = 0.0;
-    }
-    return motor_fp_pd;
+    memset(&leg_pds, 0, sizeof(LegPDs));
 }
 
-void fp_control_pos(PDStruct* pd_ptr, double kp, double kd, double pos_target, 
-                      double i_ff, double out_max)
+int32_t* fp_get_current_ptr()
 {
-    pd_ptr->kp = kp;
-    pd_ptr->kd = kd;
-    pd_ptr->value_target = pos_target;
-    pd_ptr->value_diff_target = 0.0;
-    pd_ptr->value_ff = i_ff;
-    pd_ptr->out_max = out_max;
+    return current;
+}
+
+void fp_set_target(double* pos_target)
+{
+    for(int i=0; i<MOTOR_NUM_PER_LEG; i++)
+    {
+        pd_set_param(&leg_pds.left[i], kp[i], kd[i], pos_target[i], 0.0, 0.0, MAX_CURRENT/1000.0);
+        pd_set_param(&leg_pds.right[i], kp[i], kd[i], pos_target[i+MOTOR_NUM_PER_LEG], 0.0, 0.0, MAX_CURRENT/1000.0);
+    }
+}
+
+void fp_update_real_value(double pos_real, double vel_real, LEG_TYPE leg_type, uint16_t id)
+{
+    if(leg_type == LEFT_LEG)
+    {
+        pd_update_real_value(&leg_pds.left[id-1], pos_real, vel_real);
+    }
+    else if(leg_type == RIGHT_LEG)
+    {
+        pd_update_real_value(&leg_pds.right[id-1], pos_real, vel_real);
+    }
+}
+
+void fp_calc_output(uint16_t id)
+{
+    torque[id-1] = pd_calc_output(&leg_pds.left[id-1]); // left leg
+    torque[id-1+MOTOR_NUM_PER_LEG] = pd_calc_output(&leg_pds.right[id-1]); // right leg
+    current[id-1] = (int32_t)(torque[id-1] / TORQUE_CONSTANT * 1000.0); // left leg
+    current[id-1+MOTOR_NUM_PER_LEG] = (int32_t)(torque[id-1+MOTOR_NUM_PER_LEG] / TORQUE_CONSTANT * 1000.0); // right leg
 }
 
 void fp_damp(PDStruct* pd_ptr, double kd, double out_max)
 {
-    pd_ptr->kp = 0.0;
-    pd_ptr->kd = kd;
-    pd_ptr->value_target = 0.0;
-    pd_ptr->value_diff_target = 0.0;
-    pd_ptr->value_ff = 0.0;
-    pd_ptr->out_max = out_max;
+    pd_set_param(pd_ptr, 0.0, kd, 0.0, 0.0, 0.0, out_max);
 }
