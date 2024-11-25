@@ -14,21 +14,24 @@
 const static uint8_t motor_id[MOTOR_NUM_PER_LEG] = {0x01, 0x02, 0x03};
 
 //! buf不能小于48字节, 否则数组溢出会导致错误, 程序跑飞
-static MotorRxMsg  can1_rx_buf;
-static MotorRxMsg  can2_rx_buf;
+static MotorRxMsg  can1_rx_buf; // left leg
+static MotorRxMsg  can2_rx_buf; // right leg
 
 // to save initial pos of motors
 static uint8_t can_first_rev_flag[MOTOR_NUM_PER_LEG*2] = {1, 1, 1, 1, 1, 1};
 // 0-left hip 1-left thigh 2-left calf
 // 3-right hip 4-right thigh 5-right calf
-static int32_t motor_initial_cnt[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0};
+static int32_t motor_physical_initial_cnt[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0};
 double   motor_physical_initial_pos[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0}; // for lower board demo
-const static double motor_logical_initial_pos[MOTOR_NUM_PER_LEG*2] = {0.33522, 1.34904, -2.00320,
-                                                                     -0.33822, 1.29971, -1.98062};
+const static double motor_logical_initial_pos[MOTOR_NUM_PER_LEG*2] = {0.33, 1.34904, -2.00, // [rad]
+                                                                     -0.33, 1.29971, -2.00};
+const static int32_t motor_logical_initial_cnt[MOTOR_NUM_PER_LEG*2] = {34033, 139129, -206264, 
+                                                                -34033, 134042, -206264};
 const static int8_t motor_direction_mask[MOTOR_NUM_PER_LEG*2] = {-1, -1, 1, 1, -1, -1}; // direction mask, to convert physical pos to logical pos
 static MotorTxCmds motor_cmds;
-MotorFeedbacks motor_fbs;
-MotorFeedbacksProcessed motor_fbs_processed; // for lower board demo
+MotorFeedbacksRaw motor_fbs_raw;
+MotorFeedbacksLogical motor_fbs_logical;
+MotorFeedbacksLogicalFloat motor_fbs_logical_float; // for lower board demo
 
 /********** Function Implementations **********/
 
@@ -45,6 +48,11 @@ const double*  motor_get_logical_initial_pos()
 const int8_t* motor_get_direction_mask()
 {
     return motor_direction_mask;
+}
+
+const MotorFeedbacksLogical* motor_get_feedbacks_logical()
+{
+    return &motor_fbs_logical;
 }
 
 /**
@@ -92,29 +100,43 @@ static void motor_update_feedback(LEG_TYPE leg_type, uint16_t can_reid)
 {
     if(leg_type == LEFT_LEG)
     {
-        motor_fbs.left[can_reid-1].cnt_encoder = can1_rx_buf.cnt_encoder;
-        motor_fbs.left[can_reid-1].speed = can1_rx_buf.spd_motor;
-        motor_fbs.left[can_reid-1].current = can1_rx_buf.cur_motor;
+        // raw feedback
+        motor_fbs_raw.left[can_reid-1].cnt_encoder = can1_rx_buf.cnt_encoder;
+        motor_fbs_raw.left[can_reid-1].speed = can1_rx_buf.spd_motor;
+        motor_fbs_raw.left[can_reid-1].current = can1_rx_buf.cur_motor;
+
+        // logical feedback
+        motor_fbs_logical.left[can_reid-1].cnt_encoder = can1_rx_buf.cnt_encoder;
+        motor_fbs_logical.left[can_reid-1].speed = can1_rx_buf.spd_motor;
+
+        // convert to float
         // these processes will be transferred to upper board
         // for lower board demo
-        motor_fbs_processed.left[can_reid-1].angle = can1_rx_buf.cnt_encoder / (100.0 * MOTOR_REDUCTION_RATIO);
-        motor_fbs_processed.left[can_reid-1].angle = motor_fbs_processed.left[can_reid-1].angle * M_PI / 180.0; // convert to rad
-        motor_fbs_processed.left[can_reid-1].speed = can1_rx_buf.spd_motor / MOTOR_REDUCTION_RATIO; // convert to output axis[rpm]
-        motor_fbs_processed.left[can_reid-1].speed = motor_fbs_processed.left[can_reid-1].speed * 2 * M_PI / 60.0; // convert to rad/s
-        motor_fbs_processed.left[can_reid-1].current = can1_rx_buf.cur_motor / 1000.0; // convert to A
+        motor_fbs_logical_float.left[can_reid-1].angle = can1_rx_buf.cnt_encoder / (100.0 * MOTOR_REDUCTION_RATIO);
+        motor_fbs_logical_float.left[can_reid-1].angle = motor_fbs_logical_float.left[can_reid-1].angle * M_PI / 180.0; // convert to rad
+        motor_fbs_logical_float.left[can_reid-1].speed = can1_rx_buf.spd_motor / MOTOR_REDUCTION_RATIO; // convert to output axis[rpm]
+        motor_fbs_logical_float.left[can_reid-1].speed = motor_fbs_logical_float.left[can_reid-1].speed * 2 * M_PI / 60.0; // convert to rad/s
+        motor_fbs_logical_float.left[can_reid-1].current = can1_rx_buf.cur_motor / 1000.0; // convert to A
     }
     else if(leg_type == RIGHT_LEG)
     {
-        motor_fbs.right[can_reid-1].cnt_encoder = can2_rx_buf.cnt_encoder;
-        motor_fbs.right[can_reid-1].speed = can2_rx_buf.spd_motor;
-        motor_fbs.right[can_reid-1].current = can2_rx_buf.cur_motor;
+        // raw feedback
+        motor_fbs_raw.right[can_reid-1].cnt_encoder = can2_rx_buf.cnt_encoder;
+        motor_fbs_raw.right[can_reid-1].speed = can2_rx_buf.spd_motor;
+        motor_fbs_raw.right[can_reid-1].current = can2_rx_buf.cur_motor;
+
+        // logical feedback
+        motor_fbs_logical.right[can_reid-1].cnt_encoder = can2_rx_buf.cnt_encoder;
+        motor_fbs_logical.right[can_reid-1].speed = can2_rx_buf.spd_motor;
+
+        // convert to float
         // these processes will be transferred to upper board
         // for lower board demo
-        motor_fbs_processed.right[can_reid-1].angle = can2_rx_buf.cnt_encoder / (100.0 * MOTOR_REDUCTION_RATIO);
-        motor_fbs_processed.right[can_reid-1].angle = motor_fbs_processed.right[can_reid-1].angle * M_PI / 180.0; // convert to rad
-        motor_fbs_processed.right[can_reid-1].speed = can2_rx_buf.spd_motor / MOTOR_REDUCTION_RATIO; // convert to output axis[rpm]
-        motor_fbs_processed.right[can_reid-1].speed = motor_fbs_processed.right[can_reid-1].speed * 2 * M_PI / 60.0; // convert to rad/s
-        motor_fbs_processed.right[can_reid-1].current = can2_rx_buf.cur_motor / 1000.0; // convert to A
+        motor_fbs_logical_float.right[can_reid-1].angle = can2_rx_buf.cnt_encoder / (100.0 * MOTOR_REDUCTION_RATIO);
+        motor_fbs_logical_float.right[can_reid-1].angle = motor_fbs_logical_float.right[can_reid-1].angle * M_PI / 180.0; // convert to rad
+        motor_fbs_logical_float.right[can_reid-1].speed = can2_rx_buf.spd_motor / MOTOR_REDUCTION_RATIO; // convert to output axis[rpm]
+        motor_fbs_logical_float.right[can_reid-1].speed = motor_fbs_logical_float.right[can_reid-1].speed * 2 * M_PI / 60.0; // convert to rad/s
+        motor_fbs_logical_float.right[can_reid-1].current = can2_rx_buf.cur_motor / 1000.0; // convert to A
     }
 }
 
@@ -122,21 +144,35 @@ static void motor_post_process_feedback(LEG_TYPE leg_type, uint16_t can_reid)
 {
     if(leg_type == LEFT_LEG)
     {
-        // motor_fbs.left[can_reid-1].cnt_encoder -= motor_initial_cnt[can_reid-1];
-        motor_fbs_processed.left[can_reid-1].angle = (motor_fbs_processed.left[can_reid-1].angle 
+        // logical feedback, logicalization
+        motor_fbs_logical.left[can_reid-1].cnt_encoder = (motor_fbs_logical.left[can_reid-1].cnt_encoder 
+                                                         - motor_physical_initial_cnt[can_reid-1]) * motor_direction_mask[can_reid-1] 
+                                                         + motor_logical_initial_cnt[can_reid-1];
+        motor_fbs_logical.left[can_reid-1].speed *= motor_direction_mask[can_reid-1]; // convert to logical speed
+        
+        // logicalize float values
+        motor_fbs_logical_float.left[can_reid-1].angle = (motor_fbs_logical_float.left[can_reid-1].angle 
                                                     - motor_physical_initial_pos[can_reid-1]) * motor_direction_mask[can_reid-1] 
                                                     + motor_logical_initial_pos[can_reid-1]; // convert to logical pos, for lower board demo
         
-		motor_fbs_processed.left[can_reid-1].speed *= motor_direction_mask[can_reid-1]; // convert to logical speed, for lower board demo
+		motor_fbs_logical_float.left[can_reid-1].speed *= motor_direction_mask[can_reid-1]; // convert to logical speed, for lower board demo
+        motor_fbs_logical_float.left[can_reid-1].current *= motor_direction_mask[can_reid-1]; // convert to logical current
     }
     else if(leg_type == RIGHT_LEG)
     {
-        // motor_fbs.right[can_reid-1].cnt_encoder -= motor_initial_cnt[can_reid-1+MOTOR_NUM_PER_LEG];
-        motor_fbs_processed.right[can_reid-1].angle = (motor_fbs_processed.right[can_reid-1].angle 
+        // logical feedback, logicalization
+        motor_fbs_logical.right[can_reid-1].cnt_encoder = (motor_fbs_logical.right[can_reid-1].cnt_encoder 
+                                                         - motor_physical_initial_cnt[can_reid-1+MOTOR_NUM_PER_LEG]) * motor_direction_mask[can_reid-1+MOTOR_NUM_PER_LEG] 
+                                                         + motor_logical_initial_cnt[can_reid-1+MOTOR_NUM_PER_LEG];
+        motor_fbs_logical.right[can_reid-1].speed *= motor_direction_mask[can_reid-1+MOTOR_NUM_PER_LEG]; // convert to logical speed
+
+        // logicalize float values
+        motor_fbs_logical_float.right[can_reid-1].angle = (motor_fbs_logical_float.right[can_reid-1].angle 
                                                     - motor_physical_initial_pos[can_reid-1+MOTOR_NUM_PER_LEG]) * motor_direction_mask[can_reid-1+MOTOR_NUM_PER_LEG]
                                                     + motor_logical_initial_pos[can_reid-1+MOTOR_NUM_PER_LEG]; // convert to logical pos, for lower board demo
         
-        motor_fbs_processed.right[can_reid-1].speed *= motor_direction_mask[can_reid-1+MOTOR_NUM_PER_LEG]; // convert to logical speed, for lower board demo
+        motor_fbs_logical_float.right[can_reid-1].speed *= motor_direction_mask[can_reid-1+MOTOR_NUM_PER_LEG]; // convert to logical speed, for lower board demo
+        motor_fbs_logical_float.right[can_reid-1].current *= motor_direction_mask[can_reid-1+MOTOR_NUM_PER_LEG]; // convert to logical current
     }
 }
 
@@ -184,8 +220,9 @@ void motor_init()
 {
   memset(&can1_rx_buf, 0, sizeof(MotorRxMsg));
   memset(&can2_rx_buf, 0, sizeof(MotorRxMsg));
-  memset(&motor_fbs, 0, sizeof(MotorFeedbacks));
-  memset(&motor_fbs_processed, 0, sizeof(MotorFeedbacksProcessed));
+  memset(&motor_fbs_raw, 0, sizeof(MotorFeedbacksRaw));
+  memset(&motor_fbs_logical, 0, sizeof(MotorFeedbacksLogical));
+  memset(&motor_fbs_logical_float, 0, sizeof(MotorFeedbacksLogicalFloat));
   motor_disable();
   HAL_Delay(0);
 }
@@ -279,13 +316,13 @@ void motor_pd_update_real_value(LEG_TYPE leg_type, uint16_t can_reid)
     double vel_real;
     if(leg_type == LEFT_LEG)
     {
-        pos_real = motor_fbs_processed.left[can_reid-1].angle;
-        vel_real = motor_fbs_processed.left[can_reid-1].speed;
+        pos_real = motor_fbs_logical_float.left[can_reid-1].angle;
+        vel_real = motor_fbs_logical_float.left[can_reid-1].speed;
     }
     else if(leg_type == RIGHT_LEG)
     {
-        pos_real = motor_fbs_processed.right[can_reid-1].angle;
-        vel_real = motor_fbs_processed.right[can_reid-1].speed;
+        pos_real = motor_fbs_logical_float.right[can_reid-1].angle;
+        vel_real = motor_fbs_logical_float.right[can_reid-1].speed;
     }
     fp_update_real_value(pos_real, vel_real, leg_type, can_reid);
 }
@@ -308,8 +345,8 @@ static void fdcan1_rx_callback(void)
         motor_update_feedback(LEFT_LEG, can_reid);
         if(can_first_rev_flag[can_reid-1] == 1) // first receive, save initial pos
         {
-            motor_initial_cnt[can_reid-1] = can1_rx_buf.cnt_encoder;
-            motor_physical_initial_pos[can_reid-1] = motor_fbs_processed.left[can_reid-1].angle; // for lower board demo
+            motor_physical_initial_cnt[can_reid-1] = can1_rx_buf.cnt_encoder;
+            motor_physical_initial_pos[can_reid-1] = motor_fbs_logical_float.left[can_reid-1].angle; // before logicalization, it's physical pos
             can_first_rev_flag[can_reid-1] = 0;
         }
         else
@@ -338,8 +375,8 @@ static void fdcan2_rx_callback(void)
         motor_update_feedback(RIGHT_LEG, can_reid);
         if(can_first_rev_flag[can_reid-1+MOTOR_NUM_PER_LEG] == 1) // first receive, save initial pos
         {
-            motor_initial_cnt[can_reid-1+MOTOR_NUM_PER_LEG] = can2_rx_buf.cnt_encoder;
-            motor_physical_initial_pos[can_reid-1+MOTOR_NUM_PER_LEG] = motor_fbs_processed.right[can_reid-1].angle; // for lower board demo
+            motor_physical_initial_cnt[can_reid-1+MOTOR_NUM_PER_LEG] = can2_rx_buf.cnt_encoder;
+            motor_physical_initial_pos[can_reid-1+MOTOR_NUM_PER_LEG] = motor_fbs_logical_float.right[can_reid-1].angle; // before logicalization, it's physical pos
             can_first_rev_flag[can_reid-1+MOTOR_NUM_PER_LEG] = 0;
         }
         else

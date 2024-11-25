@@ -33,10 +33,13 @@ motor_driver/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_i2c_ex.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_pwr.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_pwr_ex.h \
+  ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_spi.h \
+  ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_spi_ex.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_tim.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_tim_ex.h \
   ..\Core\Inc\fdcan.h ..\Core\Inc\main.h ..\Core\Inc\memorymap.h \
-  ..\Core\Inc\tim.h ..\Core\Inc\gpio.h \
+  ..\Core\Inc\spi.h ..\Core\Inc\tim.h ..\Core\Inc\gpio.h \
   D:\software\keilv5\ARM\ARMCLANG\Bin\..\include\string.h \
   ..\common\param.h ..\bsp\can_bsp.h ..\module\motor.h \
-  ..\algorithm\force_position.h ..\algorithm\pd.h
+  ..\algorithm\force_position.h ..\algorithm\pd.h ..\module\upper_comm.h \
+  ..\module\motor.h

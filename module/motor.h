@@ -63,41 +63,59 @@ typedef struct
     MotorRxMsg right[MOTOR_NUM_PER_LEG];
 }MotorRxMsgs;
 
-// Selected motor feedback data, transmitted to upper board
+// Selected raw motor feedback data, for lower board debug
 typedef struct
 {
     int32_t cnt_encoder;
     int32_t speed;
     int32_t current;
-}MotorFeedback;
+}MotorFeedbackRaw;
 
 // Integration of MotorFeedback
 // 0-hip, 1-thigh, 2-calf
 typedef struct
 {
-    MotorFeedback left[MOTOR_NUM_PER_LEG];
-    MotorFeedback right[MOTOR_NUM_PER_LEG];
-}MotorFeedbacks;
+    MotorFeedbackRaw left[MOTOR_NUM_PER_LEG];
+    MotorFeedbackRaw right[MOTOR_NUM_PER_LEG];
+}MotorFeedbacksRaw;
 
-// Processed motor feedback data, for lower board demo
+// motor feedback data processed into logical values with int32_t type
+// transimitted to upper board
+// 8 bytes
+typedef struct
+{
+    int32_t cnt_encoder;
+    int32_t speed;
+}MotorFeedbackLogical;
+
+// Integration of MotorFeedbackLogical
+// 48 bytes
+typedef struct
+{
+    MotorFeedbackLogical left[MOTOR_NUM_PER_LEG];
+    MotorFeedbackLogical right[MOTOR_NUM_PER_LEG];
+}MotorFeedbacksLogical;
+
+// motor feedback data processed into logical values with float type, for lower board demo
 typedef struct
 {
     double angle;   // [rad], angle of motor shaft
     double speed;   // [rad/s], speed of motor shaft
     double current; // [A], current of motor
-}MotorFeedbackProcessed;
+}MotorFeedbackLogicalFloat;
 
 typedef struct
 {
-    MotorFeedbackProcessed left[MOTOR_NUM_PER_LEG];
-    MotorFeedbackProcessed right[MOTOR_NUM_PER_LEG];
-}MotorFeedbacksProcessed;
+    MotorFeedbackLogicalFloat left[MOTOR_NUM_PER_LEG];
+    MotorFeedbackLogicalFloat right[MOTOR_NUM_PER_LEG];
+}MotorFeedbacksLogicalFloat;
 
 /********** Function Prototypes **********/
 
 const uint8_t* motor_get_id_ptr(void);
 const double*  motor_get_logical_initial_pos(void);
 const int8_t* motor_get_direction_mask();
+const MotorFeedbacksLogical* motor_get_feedbacks_logical(void);
 void motor_enable(void);
 void motor_disable(void);
 void motor_init(void);

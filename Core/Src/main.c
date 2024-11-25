@@ -20,6 +20,7 @@
 #include "main.h"
 #include "fdcan.h"
 #include "memorymap.h"
+#include "spi.h"
 #include "tim.h"
 #include "gpio.h"
 
@@ -30,6 +31,7 @@
 #include "can_bsp.h"
 #include "motor.h"
 #include "force_position.h"
+#include "upper_comm.h"
 
 /* USER CODE END Includes */
 
@@ -53,7 +55,7 @@
 /* USER CODE BEGIN PV */
 double         pos_current[MOTOR_NUM_PER_LEG*2] = {0.33522, 1.34904, -2.00320,
                                                   -0.33822, 1.29971, -1.98062};  // [rad]
-double         pos_des[MOTOR_NUM_PER_LEG*2] = {0.0, 0.1, -1.0, 0.0, 0.1, -1.0};  // [rad]
+// double         pos_des[MOTOR_NUM_PER_LEG*2] = {0.0, 0.1, -1.0, 0.0, 0.1, -1.0};  // [rad]
 const static uint8_t* motor_id_ptr;
 static int32_t*       current_ptr;
 const static double*  motor_logical_initial_pos_ptr;
@@ -97,6 +99,7 @@ static void init_system()
 {
   init_motors();
   init_force_position_control();
+  upper_comm_init();
 }
 
 static void start_pd_control()
@@ -107,6 +110,11 @@ static void start_pd_control()
 static void start_send_motor_cmd()
 {
   HAL_TIM_Base_Start_IT(&htim7);
+}
+
+static void start_upper_board_comm()
+{
+  HAL_TIM_Base_Start_IT(&htim8);
 }
 /* USER CODE END 0 */
 
@@ -146,13 +154,16 @@ int main(void)
   MX_TIM6_Init();
   MX_TIM7_Init();
   MX_FDCAN2_Init();
+  MX_SPI3_Init();
+  MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
   init_system();
   HAL_Delay(999);
 	motor_enable();
   HAL_Delay(4999);
   start_send_motor_cmd();
-  start_pd_control();
+//  start_pd_control();
+//  start_upper_board_comm();
 
   /* USER CODE END 2 */
 
@@ -236,9 +247,9 @@ static void send_cmd()
 {
   fp_calc_output(flag);
   // convert mA to A
-  motor_control_current(motor_id_ptr[flag-1], current_ptr[flag-1]*motor_direction_mask_ptr[flag-1], 
-                         current_ptr[flag-1+MOTOR_NUM_PER_LEG]*motor_direction_mask_ptr[flag-1+MOTOR_NUM_PER_LEG]);
-//  motor_control_current(motor_id_ptr[flag-1], 0, 0);
+  // motor_control_current(motor_id_ptr[flag-1], current_ptr[flag-1]*motor_direction_mask_ptr[flag-1], // convert current to physical couterpart
+  //                        current_ptr[flag-1+MOTOR_NUM_PER_LEG]*motor_direction_mask_ptr[flag-1+MOTOR_NUM_PER_LEG]); 
+ motor_control_current(motor_id_ptr[flag-1], 0, 0);
 	switch (flag) // change id of motor to be sent cmd
   {
     case 1:
@@ -262,36 +273,36 @@ static void send_cmd()
  */
 static void update_motor_pd()
 {
-  if(change_motor_flag != 4)
-  {
-    if(step > interpolation_period)
-    {
-      step = 0;
-			interpolation_percent = 0.0;
-      switch (change_motor_flag)
-      {
-      case 1:
-        change_motor_flag = 2;
-        break;
-      case 2:
-        change_motor_flag = 3;
-        break;
-      case 3:
-        change_motor_flag = 4;
-        break;
-      default:
-        change_motor_flag = 4;
-        break;
-      }
-    }
-    else if(step <= interpolation_period)
-    {
-      interpolation_percent = (float)step / interpolation_period;
-			pos_current[change_motor_flag-1] = (1-interpolation_percent) * motor_logical_initial_pos_ptr[change_motor_flag-1] + interpolation_percent * pos_des[change_motor_flag-1];
-			pos_current[change_motor_flag-1+MOTOR_NUM_PER_LEG] = (1-interpolation_percent) * motor_logical_initial_pos_ptr[change_motor_flag-1+MOTOR_NUM_PER_LEG] + interpolation_percent * pos_des[change_motor_flag-1+MOTOR_NUM_PER_LEG];
-      step++;
-    }
-  }
+  // if(change_motor_flag != 4)
+  // {
+  //   if(step > interpolation_period)
+  //   {
+  //     step = 0;
+	// 		interpolation_percent = 0.0;
+  //     switch (change_motor_flag)
+  //     {
+  //     case 1:
+  //       change_motor_flag = 2;
+  //       break;
+  //     case 2:
+  //       change_motor_flag = 3;
+  //       break;
+  //     case 3:
+  //       change_motor_flag = 4;
+  //       break;
+  //     default:
+  //       change_motor_flag = 4;
+  //       break;
+  //     }
+  //   }
+  //   else if(step <= interpolation_period)
+  //   {
+  //     interpolation_percent = (float)step / interpolation_period;
+	// 		pos_current[change_motor_flag-1] = (1-interpolation_percent) * motor_logical_initial_pos_ptr[change_motor_flag-1] + interpolation_percent * pos_des[change_motor_flag-1];
+	// 		pos_current[change_motor_flag-1+MOTOR_NUM_PER_LEG] = (1-interpolation_percent) * motor_logical_initial_pos_ptr[change_motor_flag-1+MOTOR_NUM_PER_LEG] + interpolation_percent * pos_des[change_motor_flag-1+MOTOR_NUM_PER_LEG];
+  //     step++;
+  //   }
+  // }
   
 	fp_set_target(pos_current);
 //  fp_damp();
@@ -303,9 +314,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) // 300us
   {
     send_cmd();
   }
-  else if(htim->Instance == TIM6) // 500Hz period, update motor pd parameters
+  else if(htim->Instance == TIM6) // 2ms period, update motor pd parameters
   {
     update_motor_pd();
+  }
+  if(htim->Instance == TIM8) // 50us, for SPI communication
+  {
+    update_lower2upper_msg();
+    upper_comm_transmit_receive();
   }
 }
 
