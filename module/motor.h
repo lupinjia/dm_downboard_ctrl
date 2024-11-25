@@ -97,6 +97,7 @@ typedef struct
 
 const uint8_t* motor_get_id_ptr(void);
 const double*  motor_get_logical_initial_pos(void);
+const int8_t* motor_get_direction_mask();
 void motor_enable(void);
 void motor_disable(void);
 void motor_init(void);

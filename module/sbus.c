@@ -1,7 +1,7 @@
 #include "sbus.h"
 #include "param.h"
 #include "string.h"
-#include "usart.h"
+// #include "usart.h"
 
 static uint8_t uart5_rx_buf[25] = {0};
 static RC_ChannelData rc_data;
@@ -101,26 +101,26 @@ static void process_rc_data()
     }
 }
 
-/**
- * @brief UART5 IDLE event callback function.
- * @details receive sbus data from remote controller, decode it and update rc_data.
- * 
- * @param huart handle of UART
- * @param Size  size of received data
- */
+// /**
+//  * @brief UART5 IDLE event callback function.
+//  * @details receive sbus data from remote controller, decode it and update rc_data.
+//  * 
+//  * @param huart handle of UART
+//  * @param Size  size of received data
+//  */
 
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) // IDLE event callback
-{
-    if(huart->Instance == UART5)
-    {
-        if (Size <= UART5_RX_BUFFER_SIZE && uart5_rx_buf[0] == 0x0F) // success
-	      {
-		        sbus_decode(uart5_rx_buf, &rc_data);
-            process_rc_data();
-	      }
-	      else // failed
-	      {
-		        memset(uart5_rx_buf, 0, UART5_RX_BUFFER_SIZE);
-	      }			
-    }
-}
+// void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) // IDLE event callback
+// {
+//     if(huart->Instance == UART5)
+//     {
+//         if (Size <= UART5_RX_BUFFER_SIZE && uart5_rx_buf[0] == 0x0F) // success
+// 	      {
+// 		        sbus_decode(uart5_rx_buf, &rc_data);
+//             process_rc_data();
+// 	      }
+// 	      else // failed
+// 	      {
+// 		        memset(uart5_rx_buf, 0, UART5_RX_BUFFER_SIZE);
+// 	      }			
+//     }
+// }

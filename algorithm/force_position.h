@@ -52,7 +52,7 @@ void fp_update_real_value(double pos_real, double vel_real, LEG_TYPE leg_type, u
  * @param out_max 
  * @return double 
  */
-void fp_damp(PDStruct* pd_ptr, double kd, double out_max);
+void fp_damp();
 
 /**
  * @brief calculate output of force-position control

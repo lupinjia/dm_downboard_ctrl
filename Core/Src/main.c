@@ -18,18 +18,15 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "dma.h"
 #include "fdcan.h"
 #include "memorymap.h"
 #include "tim.h"
-#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <string.h>
 #include "param.h"
-#include "sbus.h"
 #include "can_bsp.h"
 #include "motor.h"
 #include "force_position.h"
@@ -54,15 +51,19 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-double         pos_des[MOTOR_NUM_PER_LEG*2] = {-0.33522, 1.34904, -2.00320,
-                                                      -0.33822, -1.29971, 1.98062};  // [rad]
+double         pos_current[MOTOR_NUM_PER_LEG*2] = {0.33522, 1.34904, -2.00320,
+                                                  -0.33822, 1.29971, -1.98062};  // [rad]
+double         pos_des[MOTOR_NUM_PER_LEG*2] = {0.0, 0.1, -1.0, 0.0, 0.1, -1.0};  // [rad]
 const static uint8_t* motor_id_ptr;
-static int32_t*        current_ptr;
-static uint8_t*       uart5_rx_buf_ptr;
-static double*        motor_angle_increment_ptr;
-static uint8_t*       selected_motor_id_ptr;
-const static double*   motor_logical_initial_pos_ptr;
-static uint8_t        flag = 1; 
+static int32_t*       current_ptr;
+const static double*  motor_logical_initial_pos_ptr;
+const static int8_t*  motor_direction_mask_ptr;
+static uint8_t        flag = 1;
+int8_t         change_motor_flag = 1;
+uint16_t       step = 0;
+static uint16_t       interpolation_period = 3000; // 1500 periods for each pair of motors
+float          interpolation_percent = 0.0;
+
 
 /* USER CODE END PV */
 
@@ -79,18 +80,11 @@ static void MPU_Config(void);
 // get static variable pointers
 static void init_motors()
 {
+	can_bsp_init();
   motor_init();
   motor_id_ptr = motor_get_id_ptr();
   motor_logical_initial_pos_ptr = motor_get_logical_initial_pos();
-  can_bsp_init();
-}
-
-static void init_rc()
-{
-  sbus_init();
-  uart5_rx_buf_ptr = sbus_get_uart5_rx_buf();
-  motor_angle_increment_ptr = sbus_get_motor_angle_increment();
-  selected_motor_id_ptr = sbus_get_selected_motor_id();
+  motor_direction_mask_ptr = motor_get_direction_mask();
 }
 
 static void init_force_position_control()
@@ -101,20 +95,15 @@ static void init_force_position_control()
 
 static void init_system()
 {
-  init_rc();
   init_motors();
-}
-
-static void start_sbus_reception()
-{
-//  HAL_UARTEx_ReceiveToIdle_IT(&huart5, uart5_rx_buf_ptr, UART5_RX_BUFFER_SIZE);
-	HAL_UARTEx_ReceiveToIdle_DMA(&huart5, uart5_rx_buf_ptr, UART5_RX_BUFFER_SIZE*2); // use the size of 2 times, because DMA will trigger interrupt when RxHalfCplt
+  init_force_position_control();
 }
 
 static void start_pd_control()
 {
   HAL_TIM_Base_Start_IT(&htim6);
 }
+
 static void start_send_motor_cmd()
 {
   HAL_TIM_Base_Start_IT(&htim7);
@@ -153,20 +142,17 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_FDCAN1_Init();
   MX_TIM6_Init();
   MX_TIM7_Init();
   MX_FDCAN2_Init();
-  MX_UART5_Init();
   /* USER CODE BEGIN 2 */
   init_system();
-  start_sbus_reception();
   HAL_Delay(999);
 	motor_enable();
-  HAL_Delay(999);
-  // start_pd_control();
-	start_send_motor_cmd();
+  HAL_Delay(4999);
+  start_send_motor_cmd();
+  start_pd_control();
 
   /* USER CODE END 2 */
 
@@ -178,8 +164,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-//    pos_des[*selected_motor_id_ptr-1] = motor_logical_initial_pos_ptr[*selected_motor_id_ptr-1] + motor_angle_increment_ptr[0];
-//    pos_des[*selected_motor_id_ptr-1+MOTOR_NUM_PER_LEG] = motor_logical_initial_pos_ptr[*selected_motor_id_ptr-1+MOTOR_NUM_PER_LEG] + motor_angle_increment_ptr[1];
   }
   /* USER CODE END 3 */
 }
@@ -250,10 +234,11 @@ void SystemClock_Config(void)
  */
 static void send_cmd()
 {
-  // fp_calc_output(flag);
+  fp_calc_output(flag);
   // convert mA to A
-  // motor_control_current(motor_id_ptr[flag-1], (int32_t)(current_ptr[flag-1] / TORQUE_CONSTANT * 1000.0), (int32_t)(current_ptr[flag-1+MOTOR_NUM_PER_LEG] / TORQUE_CONSTANT *1000.0));
- motor_control_current(motor_id_ptr[flag-1], 0, 0);
+  motor_control_current(motor_id_ptr[flag-1], current_ptr[flag-1]*motor_direction_mask_ptr[flag-1], 
+                         current_ptr[flag-1+MOTOR_NUM_PER_LEG]*motor_direction_mask_ptr[flag-1+MOTOR_NUM_PER_LEG]);
+//  motor_control_current(motor_id_ptr[flag-1], 0, 0);
 	switch (flag) // change id of motor to be sent cmd
   {
     case 1:
@@ -277,10 +262,39 @@ static void send_cmd()
  */
 static void update_motor_pd()
 {
-  for(int i = 0; i < MOTOR_NUM_PER_LEG; i++)
+  if(change_motor_flag != 4)
   {
-    fp_set_target(pos_des);
+    if(step > interpolation_period)
+    {
+      step = 0;
+			interpolation_percent = 0.0;
+      switch (change_motor_flag)
+      {
+      case 1:
+        change_motor_flag = 2;
+        break;
+      case 2:
+        change_motor_flag = 3;
+        break;
+      case 3:
+        change_motor_flag = 4;
+        break;
+      default:
+        change_motor_flag = 4;
+        break;
+      }
+    }
+    else if(step <= interpolation_period)
+    {
+      interpolation_percent = (float)step / interpolation_period;
+			pos_current[change_motor_flag-1] = (1-interpolation_percent) * motor_logical_initial_pos_ptr[change_motor_flag-1] + interpolation_percent * pos_des[change_motor_flag-1];
+			pos_current[change_motor_flag-1+MOTOR_NUM_PER_LEG] = (1-interpolation_percent) * motor_logical_initial_pos_ptr[change_motor_flag-1+MOTOR_NUM_PER_LEG] + interpolation_percent * pos_des[change_motor_flag-1+MOTOR_NUM_PER_LEG];
+      step++;
+    }
   }
+  
+	fp_set_target(pos_current);
+//  fp_damp();
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) // 300us

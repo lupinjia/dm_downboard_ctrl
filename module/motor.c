@@ -22,10 +22,10 @@ static uint8_t can_first_rev_flag[MOTOR_NUM_PER_LEG*2] = {1, 1, 1, 1, 1, 1};
 // 0-left hip 1-left thigh 2-left calf
 // 3-right hip 4-right thigh 5-right calf
 static int32_t motor_initial_cnt[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0};
-static double   motor_physical_initial_pos[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0}; // for lower board demo
-const static double motor_logical_initial_pos[MOTOR_NUM_PER_LEG*2] = {-0.33522, 1.34904, -2.00320,
-                                                                     -0.33822, -1.29971, 1.98062};
-const static int8_t motor_direction_mask[MOTOR_NUM_PER_LEG*2] = {-1, 1, 1, 1, -1, -1}; // direction mask, to convert physical pos to logical pos
+double   motor_physical_initial_pos[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0}; // for lower board demo
+const static double motor_logical_initial_pos[MOTOR_NUM_PER_LEG*2] = {0.33522, 1.34904, -2.00320,
+                                                                     -0.33822, 1.29971, -1.98062};
+const static int8_t motor_direction_mask[MOTOR_NUM_PER_LEG*2] = {-1, -1, 1, 1, -1, -1}; // direction mask, to convert physical pos to logical pos
 static MotorTxCmds motor_cmds;
 MotorFeedbacks motor_fbs;
 MotorFeedbacksProcessed motor_fbs_processed; // for lower board demo
@@ -40,6 +40,11 @@ const uint8_t* motor_get_id_ptr()
 const double*  motor_get_logical_initial_pos()
 {
     return motor_logical_initial_pos;
+}
+
+const int8_t* motor_get_direction_mask()
+{
+    return motor_direction_mask;
 }
 
 /**
@@ -117,17 +122,21 @@ static void motor_post_process_feedback(LEG_TYPE leg_type, uint16_t can_reid)
 {
     if(leg_type == LEFT_LEG)
     {
-        motor_fbs.left[can_reid-1].cnt_encoder -= motor_initial_cnt[can_reid-1];
-        motor_fbs_processed.left[can_reid-1].angle = motor_fbs_processed.left[can_reid-1].angle 
-                                                    - motor_physical_initial_pos[can_reid-1] 
+        // motor_fbs.left[can_reid-1].cnt_encoder -= motor_initial_cnt[can_reid-1];
+        motor_fbs_processed.left[can_reid-1].angle = (motor_fbs_processed.left[can_reid-1].angle 
+                                                    - motor_physical_initial_pos[can_reid-1]) * motor_direction_mask[can_reid-1] 
                                                     + motor_logical_initial_pos[can_reid-1]; // convert to logical pos, for lower board demo
+        
+		motor_fbs_processed.left[can_reid-1].speed *= motor_direction_mask[can_reid-1]; // convert to logical speed, for lower board demo
     }
     else if(leg_type == RIGHT_LEG)
     {
-        motor_fbs.right[can_reid-1].cnt_encoder -= motor_initial_cnt[can_reid-1+MOTOR_NUM_PER_LEG];
-        motor_fbs_processed.right[can_reid-1].angle = motor_fbs_processed.right[can_reid-1].angle 
-                                                    - motor_physical_initial_pos[can_reid-1+MOTOR_NUM_PER_LEG]
+        // motor_fbs.right[can_reid-1].cnt_encoder -= motor_initial_cnt[can_reid-1+MOTOR_NUM_PER_LEG];
+        motor_fbs_processed.right[can_reid-1].angle = (motor_fbs_processed.right[can_reid-1].angle 
+                                                    - motor_physical_initial_pos[can_reid-1+MOTOR_NUM_PER_LEG]) * motor_direction_mask[can_reid-1+MOTOR_NUM_PER_LEG]
                                                     + motor_logical_initial_pos[can_reid-1+MOTOR_NUM_PER_LEG]; // convert to logical pos, for lower board demo
+        
+        motor_fbs_processed.right[can_reid-1].speed *= motor_direction_mask[can_reid-1+MOTOR_NUM_PER_LEG]; // convert to logical speed, for lower board demo
     }
 }
 
@@ -173,12 +182,12 @@ void motor_disable()
  */
 void motor_init()
 {
-//    memset(&can1_rx_buf, 0, sizeof(MotorRxMsg));
-//    memset(&can2_rx_buf, 0, sizeof(MotorRxMsg));
-//    memset(&motor_fbs, 0, sizeof(MotorFeedbacks));
-//    memset(&motor_fbs_processed, 0, sizeof(MotorFeedbacksProcessed));
-    motor_disable();
-    HAL_Delay(0);
+  memset(&can1_rx_buf, 0, sizeof(MotorRxMsg));
+  memset(&can2_rx_buf, 0, sizeof(MotorRxMsg));
+  memset(&motor_fbs, 0, sizeof(MotorFeedbacks));
+  memset(&motor_fbs_processed, 0, sizeof(MotorFeedbacksProcessed));
+  motor_disable();
+  HAL_Delay(0);
 }
 
 void motor_msg_init(MotorRxMsg *motor_msg)
@@ -271,12 +280,12 @@ void motor_pd_update_real_value(LEG_TYPE leg_type, uint16_t can_reid)
     if(leg_type == LEFT_LEG)
     {
         pos_real = motor_fbs_processed.left[can_reid-1].angle;
-        vel_real = motor_fbs_processed.left[can_reid-1].speed * motor_direction_mask[can_reid-1];
+        vel_real = motor_fbs_processed.left[can_reid-1].speed;
     }
     else if(leg_type == RIGHT_LEG)
     {
         pos_real = motor_fbs_processed.right[can_reid-1].angle;
-        vel_real = motor_fbs_processed.right[can_reid-1].speed * motor_direction_mask[can_reid-1 + MOTOR_NUM_PER_LEG];
+        vel_real = motor_fbs_processed.right[can_reid-1].speed;
     }
     fp_update_real_value(pos_real, vel_real, leg_type, can_reid);
 }

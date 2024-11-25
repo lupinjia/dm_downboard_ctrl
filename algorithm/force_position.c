@@ -2,12 +2,13 @@
 #include "force_position.h"
 
 // kp and kd for each motor
-const static double  kp[3] = {10.0, 10.0, 10.0};
+const static double  kp[3] = {20.0, 20.0, 20.0};
 const static double  kd[3] = {0.5,  0.5,  0.5};
+const static double  damp_kd = 1.0;
 
 LegPDs leg_pds;
-static double torque[MOTOR_NUM_PER_LEG*2] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-static int32_t current[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0};
+double torque[MOTOR_NUM_PER_LEG*2] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+int32_t current[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0};
 
 void fp_init()
 {
@@ -48,7 +49,11 @@ void fp_calc_output(uint16_t id)
     current[id-1+MOTOR_NUM_PER_LEG] = (int32_t)(torque[id-1+MOTOR_NUM_PER_LEG] / TORQUE_CONSTANT * 1000.0); // right leg
 }
 
-void fp_damp(PDStruct* pd_ptr, double kd, double out_max)
+void fp_damp()
 {
-    pd_set_param(pd_ptr, 0.0, kd, 0.0, 0.0, 0.0, out_max);
+    for(int i=0; i<MOTOR_NUM_PER_LEG; i++)
+    {
+        pd_set_param(&leg_pds.left[i], 0.0, damp_kd, 0.0, 0.0, 0.0, MAX_CURRENT/1000.0);
+        pd_set_param(&leg_pds.right[i], 0.0, damp_kd, 0.0, 0.0, 0.0, MAX_CURRENT/1000.0);
+    }
 }
