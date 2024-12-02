@@ -53,9 +53,9 @@ uint8_t* sbus_get_uart5_rx_buf();
  */
 RC_ChannelData* sbus_get_rc_channel_data();
 
-double* sbus_get_motor_angle_increment();
+const double* sbus_get_motor_angle_increment();
 
-uint8_t* sbus_get_selected_motor_id();
+const uint8_t* sbus_get_selected_motor_id();
 /**
  * @brief Initialize sbus module
  * 
@@ -63,6 +63,8 @@ uint8_t* sbus_get_selected_motor_id();
  * @return None
  */
 void sbus_init();
+
+void start_sbus_reception();
 
 #pragma pack(pop) // restore byte alignment
 

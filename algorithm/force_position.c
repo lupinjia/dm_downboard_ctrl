@@ -2,8 +2,8 @@
 #include "force_position.h"
 
 // kp and kd for each motor
-const static double  kp[3] = {20.0, 20.0, 20.0};
-const static double  kd[3] = {0.5,  0.5,  0.5};
+const static double  kp[3] = {30.0, 30.0, 30.0};
+const static double  kd[3] = {3.0,  3.0,  3.0};
 const static double  damp_kd = 1.0;
 
 LegPDs leg_pds;
@@ -24,8 +24,8 @@ void fp_set_target(double* pos_target)
 {
     for(int i=0; i<MOTOR_NUM_PER_LEG; i++)
     {
-        pd_set_param(&leg_pds.left[i], kp[i], kd[i], pos_target[i], 0.0, 0.0, MAX_CURRENT/1000.0);
-        pd_set_param(&leg_pds.right[i], kp[i], kd[i], pos_target[i+MOTOR_NUM_PER_LEG], 0.0, 0.0, MAX_CURRENT/1000.0);
+        pd_set_param(&leg_pds.left[i], kp[i], kd[i], pos_target[i], 0.0, 0.0, MAX_TORQUE_NM);
+        pd_set_param(&leg_pds.right[i], kp[i], kd[i], pos_target[i+MOTOR_NUM_PER_LEG], 0.0, 0.0, MAX_TORQUE_NM);
     }
 }
 
@@ -53,7 +53,7 @@ void fp_damp()
 {
     for(int i=0; i<MOTOR_NUM_PER_LEG; i++)
     {
-        pd_set_param(&leg_pds.left[i], 0.0, damp_kd, 0.0, 0.0, 0.0, MAX_CURRENT/1000.0);
-        pd_set_param(&leg_pds.right[i], 0.0, damp_kd, 0.0, 0.0, 0.0, MAX_CURRENT/1000.0);
+        pd_set_param(&leg_pds.left[i], 0.0, damp_kd, 0.0, 0.0, 0.0, MAX_TORQUE_NM);
+        pd_set_param(&leg_pds.right[i], 0.0, damp_kd, 0.0, 0.0, 0.0, MAX_TORQUE_NM);
     }
 }

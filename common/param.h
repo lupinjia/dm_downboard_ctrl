@@ -6,6 +6,8 @@
 #define MOTOR_REDUCTION_RATIO 18.0f
 #define M_PI	              3.14159265358979323846f
 #define MAX_CURRENT           20000 //[mA]
+#define MAX_CURRENT_A         
+#define MAX_TORQUE_NM         30.0f // [Nm]
 // #define FP_KP                 1000.0f
 // #define FP_KD                 90.0f
 #define FP_DAMP_KD            10.0f
