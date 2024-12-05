@@ -1,7 +1,7 @@
 motor_driver/upper_comm.o: ..\module\upper_comm.c \
   D:\software\keilv5\ARM\ARMCLANG\Bin\..\include\string.h \
-  ..\module\upper_comm.h ..\module\motor.h \
-  ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal.h \
+  ..\module\upper_comm.h ..\module\motor.h ..\bsp\can_bsp.h \
+  ..\Core\Inc\main.h ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal.h \
   ..\Core\Inc\stm32h7xx_hal_conf.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_rcc.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_def.h \
@@ -41,6 +41,5 @@ motor_driver/upper_comm.o: ..\module\upper_comm.c \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_tim_ex.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_uart.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_uart_ex.h \
-  ..\bsp\can_bsp.h ..\Core\Inc\main.h ..\Core\Inc\fdcan.h \
-  ..\Core\Inc\main.h ..\Core\Inc\tim.h ..\common\param.h \
-  ..\Core\Inc\spi.h
+  ..\Core\Inc\fdcan.h ..\Core\Inc\main.h ..\Core\Inc\tim.h \
+  ..\common\param.h ..\module\sbus.h ..\Core\Inc\spi.h

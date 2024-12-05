@@ -1122,11 +1122,6 @@
               <FileType>1</FileType>
               <FilePath>..\algorithm\pd.c</FilePath>
             </File>
-            <File>
-              <FileName>force_position.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\algorithm\force_position.c</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>

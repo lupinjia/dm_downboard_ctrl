@@ -33,7 +33,6 @@
 #include "sbus.h"
 #include "can_bsp.h"
 #include "motor.h"
-#include "force_position.h"
 #include "upper_comm.h"
 
 /* USER CODE END Includes */
@@ -56,20 +55,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-double         pos_current[MOTOR_NUM_PER_LEG*2] = {0.33, 1.34904, -2.00,
-                                                  -0.33, 1.29971, -2.00};  // [rad]
-double         pos_des[MOTOR_NUM_PER_LEG*2] = {0.0, 0.5, -1.0, 0.0, 0.5, -1.0};  // [rad]
-const static uint8_t* motor_id_ptr;
-static int32_t*       current_ptr;
-const static double*  motor_logical_initial_pos_ptr;
-const static int8_t*  motor_direction_mask_ptr;
-static uint8_t        flag = 1;
-int8_t         change_motor_flag = 1;
-uint16_t       step = 0;
-static uint16_t       interpolation_period = 3000; // 1500 periods for each pair of motors
-float          interpolation_percent = 0.0;
-const static double*  motor_angle_increment_ptr = NULL;
-const static uint8_t* selected_motor_id_ptr = NULL;
 
 
 /* USER CODE END PV */
@@ -89,35 +74,18 @@ static void init_motors()
 {
 	can_bsp_init();
   motor_init();
-  motor_id_ptr = motor_get_id_ptr();
-  motor_logical_initial_pos_ptr = motor_get_logical_initial_pos();
-  motor_direction_mask_ptr = motor_get_direction_mask();
-}
-
-static void init_force_position_control()
-{
-  fp_init();
-  current_ptr = fp_get_current_ptr();
 }
 
 static void init_rc()
 {
   sbus_init();
-  motor_angle_increment_ptr = sbus_get_motor_angle_increment();
-  selected_motor_id_ptr = sbus_get_selected_motor_id();
 }
 
 static void init_system()
 {
   init_rc();
   init_motors();
-  init_force_position_control();
   upper_comm_init();
-}
-
-static void start_pd_control()
-{
-  HAL_TIM_Base_Start_IT(&htim6);
 }
 
 static void start_send_motor_cmd()
@@ -125,10 +93,6 @@ static void start_send_motor_cmd()
   HAL_TIM_Base_Start_IT(&htim7);
 }
 
-static void start_upper_board_comm()
-{
-  HAL_TIM_Base_Start_IT(&htim8);
-}
 /* USER CODE END 0 */
 
 /**
@@ -165,21 +129,17 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_FDCAN1_Init();
-  MX_TIM6_Init();
   MX_TIM7_Init();
   MX_FDCAN2_Init();
   MX_SPI3_Init();
-  MX_TIM8_Init();
   MX_UART5_Init();
   /* USER CODE BEGIN 2 */
   init_system();
+  start_sbus_reception();
   HAL_Delay(999);
 	motor_enable();
   start_send_motor_cmd();
   HAL_Delay(2999);
-  start_pd_control();
-//  start_upper_board_comm();
-  start_sbus_reception();
 
   /* USER CODE END 2 */
 
@@ -250,100 +210,6 @@ void SystemClock_Config(void)
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
   {
     Error_Handler();
-  }
-}
-
-/* USER CODE BEGIN 4 */
-/**
- * @brief   send command to motor, callback for TIM6
- * @details the frequency of this function is 300us, which means each motor will receive its cmd every 900us.
- * @return  none
- */
-static void send_cmd()
-{
-  fp_calc_output(flag);
-  // convert mA to A
-  motor_control_current(motor_id_ptr[flag-1], current_ptr[flag-1]*motor_direction_mask_ptr[flag-1], // convert current to physical couterpart
-                         current_ptr[flag-1+MOTOR_NUM_PER_LEG]*motor_direction_mask_ptr[flag-1+MOTOR_NUM_PER_LEG]); 
-//  motor_control_current(motor_id_ptr[flag-1], 0, 0);
-	switch (flag) // change id of motor to be sent cmd
-  {
-    case 1:
-      flag = 2;
-      break;
-    case 2:
-      flag = 3;
-      break;
-    case 3:
-      flag = 1;
-      break;
-    default:
-      flag = 1;
-      break;
-  }
-}
-/**
- * @brief   500Hz TIM6 callback function.
- * @details update motor pd parameters
- * 
- */
-static void update_motor_pd()
-{
-  if(change_motor_flag != 4)
-  {
-    if(step > interpolation_period)
-    {
-      step = 0;
-			interpolation_percent = 0.0;
-      switch (change_motor_flag)
-      {
-      case 1:
-        change_motor_flag = 2;
-        break;
-      case 2:
-        change_motor_flag = 3;
-        break;
-      case 3:
-        change_motor_flag = 4;
-        break;
-      default:
-        change_motor_flag = 4;
-        break;
-      } 
-    }
-    else if(step <= interpolation_period)
-    {
-      interpolation_percent = (float)step / interpolation_period;
-			pos_current[change_motor_flag-1] = (1-interpolation_percent) * motor_logical_initial_pos_ptr[change_motor_flag-1] + interpolation_percent * pos_des[change_motor_flag-1];
-			pos_current[change_motor_flag-1+MOTOR_NUM_PER_LEG] = (1-interpolation_percent) * motor_logical_initial_pos_ptr[change_motor_flag-1+MOTOR_NUM_PER_LEG] + interpolation_percent * pos_des[change_motor_flag-1+MOTOR_NUM_PER_LEG];
-      step++;
-    }
-  }
-  else
-  {
-    pos_current[*selected_motor_id_ptr-1] = pos_des[*selected_motor_id_ptr-1] + motor_angle_increment_ptr[0];
-    pos_current[*selected_motor_id_ptr-1+MOTOR_NUM_PER_LEG] = pos_des[*selected_motor_id_ptr-1+MOTOR_NUM_PER_LEG] 
-                                                            + motor_angle_increment_ptr[1];
-  }
-  
-	fp_set_target(pos_current);
-//  fp_damp();
-}
-
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) // 300us
-{
-  if(htim->Instance == TIM7) // 300us period, nearly 1ms for each motor
-  {
-    send_cmd();
-  }
-  else if(htim->Instance == TIM6) // 2ms period, update motor pd parameters
-  {
-    update_motor_pd();
-  }
-  if(htim->Instance == TIM8) // 50us period, for SPI communication
-  {
-    update_lower2upper_msg();
-    upper_comm_transmit_receive();
   }
 }
 

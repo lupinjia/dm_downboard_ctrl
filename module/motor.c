@@ -7,11 +7,11 @@
  * @last_modified 20240904
  *********************************************************************/
 #include "motor.h"
-#include "force_position.h"
 
 /********** Variables **********/
 // left leg and right leg are 2 buses, and the motor id on same position is the same
 const static uint8_t motor_id[MOTOR_NUM_PER_LEG] = {0x01, 0x02, 0x03};
+static uint8_t        can_send_flag = 1; // choose which id to send cmd
 
 //! buf不能小于48字节, 否则数组溢出会导致错误, 程序跑飞
 static MotorRxMsg  can1_rx_buf; // left leg
@@ -21,14 +21,15 @@ static MotorRxMsg  can2_rx_buf; // right leg
 static uint8_t can_first_rev_flag[MOTOR_NUM_PER_LEG*2] = {1, 1, 1, 1, 1, 1};
 // 0-left hip 1-left thigh 2-left calf
 // 3-right hip 4-right thigh 5-right calf
-static int32_t motor_physical_initial_cnt[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0};
-double   motor_physical_initial_pos[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0}; // for lower board demo
-const static double motor_logical_initial_pos[MOTOR_NUM_PER_LEG*2] = {0.33, 1.34904, -2.00, // [rad]
-                                                                     -0.33, 1.29971, -2.00};
-const static int32_t motor_logical_initial_cnt[MOTOR_NUM_PER_LEG*2] = {34033, 139129, -206264, 
-                                                                -34033, 134042, -206264};
+static int32_t  motor_physical_initial_cnt[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0};
+static double   motor_physical_initial_pos[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0}; // for lower board demo
+const static double motor_logical_initial_pos[MOTOR_NUM_PER_LEG*2] = {0.33, 1.3, -2.00, // [rad]
+                                                                     -0.33, 1.3, -2.00};
+const static int32_t motor_logical_initial_cnt[MOTOR_NUM_PER_LEG*2] = {34033, 134140, -206264, 
+                                                                      -34033, 134140, -206264};
 const static int8_t motor_direction_mask[MOTOR_NUM_PER_LEG*2] = {-1, -1, 1, 1, -1, -1}; // direction mask, to convert physical pos to logical pos
 static MotorTxCmds motor_cmds;
+int32_t motor_current_des[MOTOR_NUM_PER_LEG*2] = {0, 0, 0, 0, 0, 0};
 MotorFeedbacksRaw motor_fbs_raw;
 MotorFeedbacksLogical motor_fbs_logical;
 MotorFeedbacksLogicalFloat motor_fbs_logical_float; // for lower board demo
@@ -53,6 +54,11 @@ const int8_t* motor_get_direction_mask()
 const MotorFeedbacksLogical* motor_get_feedbacks_logical()
 {
     return &motor_fbs_logical;
+}
+
+int32_t* motor_get_current_des()
+{
+    return motor_current_des;
 }
 
 /**
@@ -310,21 +316,41 @@ void motor_control_position(uint8_t id, int32_t des_value_left, int32_t des_valu
     fdcanx_send_data(&hfdcan2, id, (uint8_t*)&motor_cmds.right[id-1], sizeof(MotorTxCmd), 1000);
 }
 
-void motor_pd_update_real_value(LEG_TYPE leg_type, uint16_t can_reid)
+
+/* USER CODE BEGIN 4 */
+/**
+ * @brief   send command to motor, callback for TIM6
+ * @details the frequency of this function is 300us, which means each motor will receive its cmd every 900us.
+ * @return  none
+ */
+static void send_cmd()
 {
-    double pos_real;
-    double vel_real;
-    if(leg_type == LEFT_LEG)
-    {
-        pos_real = motor_fbs_logical_float.left[can_reid-1].angle;
-        vel_real = motor_fbs_logical_float.left[can_reid-1].speed;
-    }
-    else if(leg_type == RIGHT_LEG)
-    {
-        pos_real = motor_fbs_logical_float.right[can_reid-1].angle;
-        vel_real = motor_fbs_logical_float.right[can_reid-1].speed;
-    }
-    fp_update_real_value(pos_real, vel_real, leg_type, can_reid);
+ motor_control_current(motor_id[can_send_flag-1], motor_current_des[can_send_flag-1]*motor_direction_mask[can_send_flag-1], // convert current to physical couterpart
+                       motor_current_des[can_send_flag-1+MOTOR_NUM_PER_LEG]*motor_direction_mask[can_send_flag-1+MOTOR_NUM_PER_LEG]); 
+//   motor_control_current(motor_id[can_send_flag-1], 0, 0);
+  switch (can_send_flag) // change id of motor to be sent cmd
+  {
+    case 1:
+      can_send_flag = 2;
+      break;
+    case 2:
+      can_send_flag = 3;
+      break;
+    case 3:
+      can_send_flag = 1;
+      break;
+    default:
+      can_send_flag = 1;
+      break;
+  }
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) // 300us
+{
+  if(htim->Instance == TIM7) // 300us period, nearly 1ms for each motor
+  {
+    send_cmd();
+  }
 }
 
 /**
@@ -353,7 +379,6 @@ static void fdcan1_rx_callback(void)
         {
             motor_post_process_feedback(LEFT_LEG, can_reid);
         }
-        motor_pd_update_real_value(LEFT_LEG, can_reid);
 	}
 }
 
@@ -383,7 +408,6 @@ static void fdcan2_rx_callback(void)
         {
             motor_post_process_feedback(RIGHT_LEG, can_reid);
         }
-        motor_pd_update_real_value(RIGHT_LEG, can_reid);
 	}
 }
 

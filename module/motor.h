@@ -1,7 +1,6 @@
 #ifndef __MOTOR_H__
 #define __MOTOR_H__
 /********** Includes **********/
-#include "stm32h7xx_hal.h"
 #include "can_bsp.h"
 #include "param.h"
 
@@ -116,6 +115,7 @@ const uint8_t* motor_get_id_ptr(void);
 const double*  motor_get_logical_initial_pos(void);
 const int8_t* motor_get_direction_mask();
 const MotorFeedbacksLogical* motor_get_feedbacks_logical(void);
+int32_t* motor_get_current_des(void);
 void motor_enable(void);
 void motor_disable(void);
 void motor_init(void);
@@ -124,7 +124,6 @@ void motor_control_speed(uint8_t id, int32_t des_value_left, int32_t des_value_r
 void motor_control_position(uint8_t id, int32_t des_value_left, int32_t des_value_right, double kp, 
                             double ki, double kd, double s, int8_t num_para);
 void motor_control_current(uint8_t id, int32_t des_value_left, int32_t des_value_right);
-void motor_pd_update_real_value(LEG_TYPE leg_type, uint16_t can_reid);
 
 #pragma pack(pop) // restore byte alignment
 

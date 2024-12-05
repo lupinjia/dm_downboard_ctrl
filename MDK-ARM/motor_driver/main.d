@@ -44,5 +44,4 @@ motor_driver/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
   ..\Core\Inc\usart.h ..\Core\Inc\gpio.h \
   D:\software\keilv5\ARM\ARMCLANG\Bin\..\include\string.h \
   ..\common\param.h ..\module\sbus.h ..\bsp\can_bsp.h ..\module\motor.h \
-  ..\algorithm\force_position.h ..\algorithm\pd.h ..\module\upper_comm.h \
-  ..\module\motor.h
+  ..\module\upper_comm.h ..\module\motor.h ..\module\sbus.h

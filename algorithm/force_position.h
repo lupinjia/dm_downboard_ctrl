@@ -59,5 +59,5 @@ void fp_damp();
  * 
  * @param id 
  */
-void fp_calc_output(uint16_t id);
+void fp_calc_output(uint8_t flag);
 #endif //__FORCE_POSITION_H__

@@ -5,8 +5,6 @@
 
 static uint8_t uart5_rx_buf[25] = {0};
 static RC_ChannelData rc_data;
-double  motor_angle_increment[2] = {0.0, 0.0};
-uint8_t selected_motor_id = 1;
 
 static uint8_t convert_switch_value(uint16_t raw_value)
 {
@@ -37,6 +35,9 @@ static void sbus_decode(uint8_t* rx_buf, RC_ChannelData* channel_data)
 	channel_data->raw_data[15] = (rx_buf[21] >> 5 | (rx_buf[22] << 3 )) & 0x07FF;
 
     // process raw channel data
+    // resultant left/right joystick value range: 0~1440
+    // resultant switch value range: 0, 1, 2
+    // resultant A/B/C/D button value range: 0, 1
     channel_data->processed_data.lx = channel_data->raw_data[3] - RAW_DATA_LOWER_BOUND;
     channel_data->processed_data.ly = channel_data->raw_data[2] - RAW_DATA_LOWER_BOUND;
     channel_data->processed_data.rx = channel_data->raw_data[0] - RAW_DATA_LOWER_BOUND;
@@ -55,19 +56,9 @@ uint8_t* sbus_get_uart5_rx_buf()
     return uart5_rx_buf;
 }
 
-RC_ChannelData* sbus_get_rc_channel_data()
+const RC_DataProcessed* sbus_get_rc_data_processed()
 {
-    return &rc_data;
-}
-
-const double* sbus_get_motor_angle_increment()
-{
-    return motor_angle_increment;
-}
-
-const uint8_t* sbus_get_selected_motor_id()
-{
-    return &selected_motor_id;
+    return &rc_data.processed_data;
 }
 
 void sbus_init()
@@ -79,31 +70,6 @@ void sbus_init()
 void start_sbus_reception()
 {
     HAL_UARTEx_ReceiveToIdle_DMA(&huart5, uart5_rx_buf, UART5_RX_BUFFER_SIZE*2);
-}
-
-static void process_rc_data()
-{
-    // ly for left motor, ry for right motor
-    motor_angle_increment[0] = ((double)rc_data.processed_data.ly - LEVER_DATA_MEDIAN_VALUE) / LEVER_DATA_MEDIAN_VALUE; // -1.0 ~ 1.0
-    motor_angle_increment[1] = ((double)rc_data.processed_data.ry - LEVER_DATA_MEDIAN_VALUE) / LEVER_DATA_MEDIAN_VALUE; // -1.0 ~ 1.0
-    motor_angle_increment[0] *= 0.5; // -0.5 ~ 0.5
-    motor_angle_increment[1] *= 0.5; // -0.5 ~ 0.5
-    // SA for motor switch
-    switch (rc_data.processed_data.SA)
-    {
-    case 0:
-        selected_motor_id = 1;
-        break;
-    case 1:
-        selected_motor_id = 2;
-        break;
-    case 2:
-        selected_motor_id = 3;
-        break;
-    default:
-        selected_motor_id = 1;
-        break;
-    }
 }
 
 /**
@@ -121,7 +87,6 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) // IDL
         if (Size <= UART5_RX_BUFFER_SIZE && uart5_rx_buf[0] == 0x0F) // success
 	    {
 		    sbus_decode(uart5_rx_buf, &rc_data);
-            process_rc_data();
 	    }
 	    else // failed
 	    {

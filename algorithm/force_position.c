@@ -41,12 +41,12 @@ void fp_update_real_value(double pos_real, double vel_real, LEG_TYPE leg_type, u
     }
 }
 
-void fp_calc_output(uint16_t id)
+void fp_calc_output(uint8_t flag)
 {
-    torque[id-1] = pd_calc_output(&leg_pds.left[id-1]); // left leg
-    torque[id-1+MOTOR_NUM_PER_LEG] = pd_calc_output(&leg_pds.right[id-1]); // right leg
-    current[id-1] = (int32_t)(torque[id-1] / TORQUE_CONSTANT * 1000.0); // left leg
-    current[id-1+MOTOR_NUM_PER_LEG] = (int32_t)(torque[id-1+MOTOR_NUM_PER_LEG] / TORQUE_CONSTANT * 1000.0); // right leg
+    torque[flag-1] = pd_calc_output(&leg_pds.left[flag-1]); // left leg
+    torque[flag-1+MOTOR_NUM_PER_LEG] = pd_calc_output(&leg_pds.right[flag-1]); // right leg
+    current[flag-1] = (int32_t)(torque[flag-1] / TORQUE_CONSTANT * 1000.0); // left leg
+    current[flag-1+MOTOR_NUM_PER_LEG] = (int32_t)(torque[flag-1+MOTOR_NUM_PER_LEG] / TORQUE_CONSTANT * 1000.0); // right leg
 }
 
 void fp_damp()

@@ -1,6 +1,8 @@
 #ifndef __PARAM_H__
 #define __PARAM_H__
 
+#include "stm32h7xx_hal.h"
+
 // Macros for Motor Control
 #define MOTOR_NUM_PER_LEG     3
 #define MOTOR_REDUCTION_RATIO 18.0f
@@ -15,6 +17,9 @@
 
 // Macros for SBUS
 #define UART5_RX_BUFFER_SIZE  25   // [byte], uart5 for sbus receive
+
+#define CS_PORT GPIOE
+#define CS_PIN  GPIO_PIN_14
 
 // Type of leg
 typedef enum

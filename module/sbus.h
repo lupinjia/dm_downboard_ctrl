@@ -28,10 +28,10 @@ typedef struct
     uint8_t  B;   // button B
     uint8_t  C;   // button C
     uint8_t  D;   // button D
-}RC_DataProcessed; 
+}RC_DataProcessed;
 
 // Channel data of remote controller, 47 bytes
-typedef struct 
+typedef struct
 {
     uint16_t raw_data[16];
     RC_DataProcessed processed_data;
@@ -45,17 +45,14 @@ typedef struct
  * @return uint8_t* pointer to uart5 rx buffer
  */
 uint8_t* sbus_get_uart5_rx_buf();
+
 /**
- * @brief Get the rc channel data pointer
+ * @brief get processed rc data
  * 
- * @attention This function is only used for debugging purposes.
- * @return RC_ChannelData* pointer to rc channel data
+ * @return const RC_DataProcessed* 
  */
-RC_ChannelData* sbus_get_rc_channel_data();
+const RC_DataProcessed* sbus_get_rc_data_processed();
 
-const double* sbus_get_motor_angle_increment();
-
-const uint8_t* sbus_get_selected_motor_id();
 /**
  * @brief Initialize sbus module
  * 

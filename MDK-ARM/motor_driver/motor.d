@@ -1,4 +1,5 @@
 motor_driver/motor.o: ..\module\motor.c ..\module\motor.h \
+  ..\bsp\can_bsp.h ..\Core\Inc\main.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal.h \
   ..\Core\Inc\stm32h7xx_hal_conf.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_rcc.h \
@@ -39,7 +40,6 @@ motor_driver/motor.o: ..\module\motor.c ..\module\motor.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_tim_ex.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_uart.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_uart_ex.h \
-  ..\bsp\can_bsp.h ..\Core\Inc\main.h ..\Core\Inc\fdcan.h \
-  ..\Core\Inc\main.h ..\Core\Inc\tim.h \
+  ..\Core\Inc\fdcan.h ..\Core\Inc\main.h ..\Core\Inc\tim.h \
   D:\software\keilv5\ARM\ARMCLANG\Bin\..\include\string.h \
-  ..\common\param.h ..\algorithm\force_position.h ..\algorithm\pd.h
+  ..\common\param.h
