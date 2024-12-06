@@ -5,6 +5,7 @@
 
 // Macros for Motor Control
 #define MOTOR_NUM_PER_LEG     3
+#define MOTOR_NUM_TOTAL       6
 #define MOTOR_REDUCTION_RATIO 18.0f
 #define M_PI	              3.14159265358979323846f
 #define MAX_CURRENT           20000 //[mA]

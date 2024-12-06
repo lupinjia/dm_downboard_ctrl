@@ -31,9 +31,9 @@
 #include <string.h>
 #include "param.h"
 #include "sbus.h"
-#include "can_bsp.h"
-#include "motor.h"
 #include "upper_comm.h"
+#include "can_bsp.h"
+#include "dvc_motor.h"
 
 /* USER CODE END Includes */
 
@@ -72,8 +72,7 @@ static void MPU_Config(void);
 // get static variable pointers
 static void init_motors()
 {
-	can_bsp_init();
-  motor_init();
+	FDCAN_Init();
 }
 
 static void init_rc()
@@ -134,12 +133,9 @@ int main(void)
   MX_SPI3_Init();
   MX_UART5_Init();
   /* USER CODE BEGIN 2 */
-  init_system();
-  start_sbus_reception();
-  HAL_Delay(999);
-	motor_enable();
+	init_system();
+  HAL_Delay(100); // wait for system init
   start_send_motor_cmd();
-  HAL_Delay(2999);
 
   /* USER CODE END 2 */
 
@@ -147,7 +143,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_Delay(9); // 10ms delay for pos_des update
+    HAL_Delay(1); // 2ms delay for pos_des update
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -184,7 +180,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLM = 2;
   RCC_OscInitStruct.PLL.PLLN = 40;
   RCC_OscInitStruct.PLL.PLLP = 1;
-  RCC_OscInitStruct.PLL.PLLQ = 6;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   RCC_OscInitStruct.PLL.PLLR = 2;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_3;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
@@ -213,6 +209,7 @@ void SystemClock_Config(void)
   }
 }
 
+/* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
 

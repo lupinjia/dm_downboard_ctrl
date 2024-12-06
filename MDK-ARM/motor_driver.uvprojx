@@ -1088,11 +1088,6 @@
           <GroupName>module</GroupName>
           <Files>
             <File>
-              <FileName>motor.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\module\motor.c</FilePath>
-            </File>
-            <File>
               <FileName>upper_comm.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\module\upper_comm.c</FilePath>
@@ -1101,6 +1096,16 @@
               <FileName>sbus.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\module\sbus.c</FilePath>
+            </File>
+            <File>
+              <FileName>dvc_motor.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\module\dvc_motor.c</FilePath>
+            </File>
+            <File>
+              <FileName>math_ops.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\module\math_ops.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -1,81 +1,60 @@
 #include "can_bsp.h"
-/**
-************************************************************************
-* @brief:      	can_bsp_init(void)
-* @param:       void
-* @retval:     	void
-* @details:    	CAN ʹ��
-************************************************************************
-**/
-void can_bsp_init()
-{
-	can_filter_init();
-	HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0);
-	HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0);
+
+FDCAN_TxFrame_TypeDef FDCAN1_TxFrame = {
+	.hcan = &hfdcan1,
+	.Header.Identifier = 0x7FF,
+	.Header.IdType = FDCAN_STANDARD_ID, 
+	.Header.TxFrameType = FDCAN_DATA_FRAME,
+	.Header.DataLength = FDCAN_DLC_BYTES_8,
+	.Header.ErrorStateIndicator =  FDCAN_ESI_ACTIVE,
+	.Header.BitRateSwitch = FDCAN_BRS_OFF,
+	.Header.FDFormat =  FDCAN_CLASSIC_CAN,           
+	.Header.TxEventFifoControl =  FDCAN_NO_TX_EVENTS,  
+	.Header.MessageMarker = 0,
+};
+
+FDCAN_TxFrame_TypeDef FDCAN2_TxFrame = {
+	.hcan = &hfdcan2,
+	.Header.Identifier = 0x7FF,
+	.Header.IdType = FDCAN_STANDARD_ID, 
+	.Header.TxFrameType = FDCAN_DATA_FRAME,
+	.Header.DataLength = FDCAN_DLC_BYTES_8,
+	.Header.ErrorStateIndicator =  FDCAN_ESI_PASSIVE,
+	.Header.BitRateSwitch = FDCAN_BRS_OFF,
+	.Header.FDFormat =  FDCAN_CLASSIC_CAN,           
+	.Header.TxEventFifoControl =  FDCAN_NO_TX_EVENTS,  
+	.Header.MessageMarker = 0,
+};
+
+FDCAN_RxFrame_TypeDef FDCAN12_RxFrame;
+
+void FDCAN_Init(void) {
+	// Configure filter
+	FDCAN_FilterTypeDef FDCAN_FilterConfig;
+	FDCAN_FilterConfig.IdType = FDCAN_STANDARD_ID;
+	FDCAN_FilterConfig.FilterIndex = 0;
+	FDCAN_FilterConfig.FilterType = FDCAN_FILTER_MASK;
+	FDCAN_FilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+	FDCAN_FilterConfig.FilterID1 = 0x00;    // 接收所有ID
+	FDCAN_FilterConfig.FilterID2 = 0x00;    // 掩码为0，不过滤
+	HAL_FDCAN_ConfigFilter(&hfdcan1, &FDCAN_FilterConfig);
+	HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
+																	FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE);
+	FDCAN_FilterConfig.IdType = FDCAN_STANDARD_ID;
+	FDCAN_FilterConfig.FilterIndex = 0;
+	FDCAN_FilterConfig.FilterType = FDCAN_FILTER_MASK;
+	FDCAN_FilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
+	FDCAN_FilterConfig.FilterID1 = 0x00;    // 接收所有ID
+	FDCAN_FilterConfig.FilterID2 = 0x00;    // 掩码为0，不过滤
+	HAL_FDCAN_ConfigFilter(&hfdcan2, &FDCAN_FilterConfig);
+	HAL_FDCAN_ConfigGlobalFilter(&hfdcan2, FDCAN_ACCEPT_IN_RX_FIFO1, FDCAN_ACCEPT_IN_RX_FIFO1,
+																	FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE);
+
+	// Start FDCAN1 and FDCAN2
 	HAL_FDCAN_Start(&hfdcan1);
 	HAL_FDCAN_Start(&hfdcan2);
-}
-/**
-************************************************************************
-* @brief:      	can_filter_init(void)
-* @param:       void
-* @retval:     	void
-* @details:    	CAN�˲�����ʼ��
-************************************************************************
-**/
-void can_filter_init(void)
-{
-	FDCAN_FilterTypeDef fdcan_filter;
-	
-	fdcan_filter.IdType = FDCAN_STANDARD_ID;
-	fdcan_filter.FilterIndex = 0;                
-	fdcan_filter.FilterType = FDCAN_FILTER_RANGE;                   
-	fdcan_filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;  
-	fdcan_filter.FilterID1 = 0x00;                               
-	fdcan_filter.FilterID2 = 0x7FF;
-	HAL_FDCAN_ConfigFilter(&hfdcan1, &fdcan_filter);
-	HAL_FDCAN_ConfigGlobalFilter(&hfdcan1,FDCAN_REJECT,FDCAN_REJECT,FDCAN_REJECT_REMOTE,FDCAN_REJECT_REMOTE);
-	fdcan_filter.IdType = FDCAN_STANDARD_ID;
-	fdcan_filter.FilterIndex = 0;                
-	fdcan_filter.FilterType = FDCAN_FILTER_RANGE;                   
-	fdcan_filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;  
-	fdcan_filter.FilterID1 = 0x00;                               
-	fdcan_filter.FilterID2 = 0x7FF;
-	HAL_FDCAN_ConfigFilter(&hfdcan2, &fdcan_filter);
-	HAL_FDCAN_ConfigGlobalFilter(&hfdcan2,FDCAN_REJECT,FDCAN_REJECT,FDCAN_REJECT_REMOTE,FDCAN_REJECT_REMOTE);
-}
-/**
-************************************************************************
-* @brief:      	fdcanx_send_data(FDCAN_HandleTypeDef *hfdcan, uint16_t id, uint8_t *data, uint32_t len)
-* @param:       hfdcan: handle of FDCAN
-* @param:       id: id of message
-* @param:       data: uint8_t array
-* @param:       len: data field length(Bytes)
-* @retval:     	void
-* @details:    	
-************************************************************************
-**/
-uint8_t fdcanx_send_data(FDCAN_HandleTypeDef *hfdcan, uint16_t id, uint8_t *data, uint32_t len, uint16_t wait)
-{	
-	// uint16_t wait = 0xFFFF;
-    FDCAN_TxHeaderTypeDef pTxHeader;
-    pTxHeader.Identifier=id;
-    pTxHeader.IdType=FDCAN_STANDARD_ID;
-    pTxHeader.TxFrameType=FDCAN_DATA_FRAME;
-    pTxHeader.DataLength = FDCAN_DLC_BYTES_48;
-    pTxHeader.ErrorStateIndicator=FDCAN_ESI_ACTIVE;
-    pTxHeader.BitRateSwitch=FDCAN_BRS_ON;
-    pTxHeader.FDFormat=FDCAN_FD_CAN;
-    pTxHeader.TxEventFifoControl=FDCAN_NO_TX_EVENTS;
-    pTxHeader.MessageMarker=0;
-//	while(HAL_FDCAN_GetTxFifoFreeLevel(hfdcan)==0)
-//	{
-//		wait--;
-//		if(wait == 0)
-//			break;
-//	}
-    if(HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &pTxHeader, data)!=HAL_OK) 
-		return 1;
 
-	return 0;	
+	// Activate FDCAN1 and FDCAN2 RX new message notification
+	HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0);
+	HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0);
 }

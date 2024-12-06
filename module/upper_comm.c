@@ -10,8 +10,8 @@ Upper2LowerMsg upper2lower_msg;
 
 void upper_comm_init(void)
 {
-  motor_fbs_logical_ptr = motor_get_feedbacks_logical();
-  motor_current_des_ptr = motor_get_current_des();
+//  motor_fbs_logical_ptr = motor_get_feedbacks_logical();
+//  motor_current_des_ptr = motor_get_current_des();
   rc_data_processed_ptr = sbus_get_rc_data_processed();
   memset(&lower2upper_msg, 0, sizeof(Lower2UpperMsg));
   memset(&upper2lower_msg, 0, sizeof(Upper2LowerMsg));

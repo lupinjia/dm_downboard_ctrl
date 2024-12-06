@@ -1,16 +1,25 @@
-#ifndef __CAN_BSP_H__
-#define __CAN_BSP_H__
-#include "main.h"
+#ifndef BSP_CAN_H
+#define BSP_CAN_H
+
+#include "stm32h7xx.h"
 #include "fdcan.h"
-#include "tim.h"
-#include "string.h"
 
-#define hcan_t FDCAN_HandleTypeDef
+typedef struct {
+    FDCAN_HandleTypeDef *hcan;
+    FDCAN_TxHeaderTypeDef Header;
+    uint8_t				Data[8];
+}FDCAN_TxFrame_TypeDef;
 
-void can_bsp_init();
-void can_filter_init(void);
-uint8_t fdcanx_send_data(FDCAN_HandleTypeDef *hfdcan, uint16_t id, uint8_t *data, uint32_t len, uint16_t wait);
+typedef struct {
+    FDCAN_HandleTypeDef *hcan;
+    FDCAN_RxHeaderTypeDef Header;
+    uint8_t 			Data[8];
+} FDCAN_RxFrame_TypeDef;
 
+extern FDCAN_TxFrame_TypeDef FDCAN1_TxFrame;
+extern FDCAN_TxFrame_TypeDef FDCAN2_TxFrame;
+extern FDCAN_RxFrame_TypeDef FDCAN12_RxFrame;
 
-#endif /* __CAN_BSP_H_ */
+void FDCAN_Init(void);
 
+#endif /* BSP_CAN_H */
