@@ -1,9 +1,9 @@
 #ifndef __UPPER_COMM_H__
 #define __UPPER_COMM_H__
 
-#include "motor.h"
 #include "sbus.h"
 #include "spi.h"
+#include "dvc_motor.h"
 
 #pragma pack(push, 1) // cancel byte alignment
 
@@ -26,7 +26,7 @@ typedef struct
 {
   uint8_t header1;
   uint8_t header2;
-  int32_t current_des[MOTOR_NUM_PER_LEG*2];
+  int32_t torque_des[MOTOR_NUM_TOTAL];
   uint8_t redundancy[39];
   uint32_t crc32;
   uint8_t tail1;

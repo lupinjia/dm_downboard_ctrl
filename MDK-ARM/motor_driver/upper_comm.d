@@ -1,10 +1,14 @@
 motor_driver/upper_comm.o: ..\module\upper_comm.c \
   D:\software\keilv5\ARM\ARMCLANG\Bin\..\include\string.h \
-  ..\module\upper_comm.h ..\module\motor.h ..\bsp\can_bsp.h \
+  ..\module\upper_comm.h ..\module\sbus.h \
+  D:\software\keilv5\ARM\ARMCLANG\Bin\..\include\stdint.h \
+  ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal.h \
+  ..\Core\Inc\stm32h7xx_hal_conf.h \
+  ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_rcc.h \
+  ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_def.h \
   ..\Drivers\CMSIS\Device\ST\STM32H7xx\Include\stm32h7xx.h \
   ..\Drivers\CMSIS\Device\ST\STM32H7xx\Include\stm32h723xx.h \
   ..\Drivers\CMSIS\Include\core_cm7.h \
-  D:\software\keilv5\ARM\ARMCLANG\Bin\..\include\stdint.h \
   ..\Drivers\CMSIS\Include\cmsis_version.h \
   ..\Drivers\CMSIS\Include\cmsis_compiler.h \
   ..\Drivers\CMSIS\Include\cmsis_armclang.h \
@@ -12,10 +16,6 @@ motor_driver/upper_comm.o: ..\module\upper_comm.c \
   D:\software\keilv5\ARM\ARMCLANG\Bin\..\include\arm_acle.h \
   ..\Drivers\CMSIS\Include\mpu_armv7.h \
   ..\Drivers\CMSIS\Device\ST\STM32H7xx\Include\system_stm32h7xx.h \
-  ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal.h \
-  ..\Core\Inc\stm32h7xx_hal_conf.h \
-  ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_rcc.h \
-  ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_def.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\Legacy\stm32_hal_legacy.h \
   D:\software\keilv5\ARM\ARMCLANG\Bin\..\include\stddef.h \
   D:\software\keilv5\ARM\ARMCLANG\Bin\..\include\math.h \
@@ -41,5 +41,6 @@ motor_driver/upper_comm.o: ..\module\upper_comm.c \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_tim_ex.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_uart.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_uart_ex.h \
-  ..\Core\Inc\fdcan.h ..\Core\Inc\main.h ..\common\param.h \
-  ..\module\sbus.h ..\Core\Inc\spi.h ..\Core\Inc\tim.h
+  ..\Core\Inc\spi.h ..\Core\Inc\main.h ..\module\dvc_motor.h \
+  ..\bsp\can_bsp.h ..\Core\Inc\fdcan.h ..\common\param.h \
+  ..\Core\Inc\tim.h

@@ -4,14 +4,14 @@
 
 const static MotorFeedbacksLogical* motor_fbs_logical_ptr = NULL;
 const static RC_DataProcessed*      rc_data_processed_ptr = NULL;
-static int32_t* motor_current_des_ptr = NULL;
+static float* motor_torque_des_ptr = NULL;
 Lower2UpperMsg lower2upper_msg;
 Upper2LowerMsg upper2lower_msg;
 
 void upper_comm_init(void)
 {
-//  motor_fbs_logical_ptr = motor_get_feedbacks_logical();
-//  motor_current_des_ptr = motor_get_current_des();
+  motor_fbs_logical_ptr = motor_get_feedbacks_logical();
+  motor_torque_des_ptr = motor_get_torque_des();
   rc_data_processed_ptr = sbus_get_rc_data_processed();
   memset(&lower2upper_msg, 0, sizeof(Lower2UpperMsg));
   memset(&upper2lower_msg, 0, sizeof(Upper2LowerMsg));
@@ -56,7 +56,10 @@ void update_lower2upper_msg(void)
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
 	// process rx data
-   memcpy(motor_current_des_ptr, upper2lower_msg.current_des, sizeof(int32_t)*MOTOR_NUM_PER_LEG*2);
+   for(int i = 0; i < MOTOR_NUM_TOTAL; i++)
+   {
+      motor_torque_des_ptr[i] = (float)(upper2lower_msg.torque_des[i] / 100000.0);
+   }
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // falling edge

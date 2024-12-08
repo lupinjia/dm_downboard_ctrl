@@ -4,15 +4,22 @@
 // left leg and right leg are 2 buses, and the motor id on same position is the same
 const static uint8_t motor_id[MOTOR_NUM_PER_LEG] = {0x01, 0x02, 0x03};
 static uint8_t       can_send_flag = 1; // choose which id to send cmd
-const static int8_t motor_direction_mask[MOTOR_NUM_PER_LEG*2] = {1, 1, 1, 1, -1, -1}; // direction mask, to convert physical pos to logical pos
+
 // to save initial pos of motors
 static uint8_t can_first_rev_flag[MOTOR_NUM_TOTAL] = {1, 1, 1, 1, 1, 1};
-float   motor_physical_initial_pos[MOTOR_NUM_TOTAL] = {0, 0, 0, 0, 0, 0};
+float   motor_physical_initial_angle[MOTOR_NUM_TOTAL] = {0, 0, 0, 0, 0, 0};
+const static float motor_logical_initial_angle[MOTOR_NUM_TOTAL] = {0.33, 1.3, -2.00, // [rad]
+                                                                     -0.33, 1.3, -2.00};
+const static int8_t motor_direction_mask[MOTOR_NUM_TOTAL] = {1, 1, 1, 1, -1, -1}; // direction mask, to convert physical pos to logical pos
 
-Motor_Msg motor_rx_msg[MOTOR_NUM_TOTAL]; 
+float motor_torque_des[MOTOR_NUM_TOTAL] = {0, 0, 0, 0, 0, 0};
 
-uint8_t motor_id_rv = 0;
-// uint8_t motor_comm_mode = 0;
+Motor_Msg motor_rx_msg[MOTOR_NUM_TOTAL];
+MotorFeedbacksRaw motor_fbs_raw;
+MotorFeedbacksLogical motor_fbs_logical;
+MotorFeedbacksLogicalFloat motor_fbs_logical_float; // for lower board demo
+
+/**********************Motor Driver Functions **************************/
 
 union TypeConvert
 {
@@ -167,6 +174,23 @@ void MotorCommModeReading(FDCAN_TxFrame_TypeDef *TxFrame, uint16_t motor_id)
 
   HAL_FDCAN_AddMessageToTxFifoQ(TxFrame->hcan, &TxFrame->Header, TxFrame->Data);
 }
+/**********************Motor Driver Functions **************************/
+
+/**********************Motor Utility Functions **************************/
+void motor_init()
+{
+
+}
+
+const MotorFeedbacksLogical* motor_get_feedbacks_logical()
+{
+  return &motor_fbs_logical;
+}
+
+float* motor_get_torque_des()
+{
+  return motor_torque_des;
+}
 
 /**
  * @brief   send command to motor, callback for TIM6
@@ -175,12 +199,10 @@ void MotorCommModeReading(FDCAN_TxFrame_TypeDef *TxFrame, uint16_t motor_id)
  */
 static void send_cmd()
 {
-
-//  motor_control_current(motor_id[can_send_flag-1], motor_current_des[can_send_flag-1]*motor_direction_mask[can_send_flag-1], // convert current to physical couterpart
-//                        motor_current_des[can_send_flag-1+MOTOR_NUM_PER_LEG]*motor_direction_mask[can_send_flag-1+MOTOR_NUM_PER_LEG]); 
-  // motor_control_current(motor_id[can_send_flag-1], 0, 0);
-  SetMotorTorque(&FDCAN1_TxFrame, motor_id[can_send_flag-1], 0.0);
-  SetMotorTorque(&FDCAN2_TxFrame, motor_id[can_send_flag-1], 0.0);
+  SetMotorTorque(&FDCAN1_TxFrame, motor_id[can_send_flag-1], motor_torque_des[can_send_flag-1] * motor_direction_mask[can_send_flag-1]);
+  SetMotorTorque(&FDCAN2_TxFrame, motor_id[can_send_flag-1], motor_torque_des[can_send_flag-1+MOTOR_NUM_PER_LEG] * motor_direction_mask[can_send_flag-1+MOTOR_NUM_PER_LEG]);
+  // SetMotorTorque(&FDCAN1_TxFrame, motor_id[can_send_flag-1], 0.0);
+  // SetMotorTorque(&FDCAN2_TxFrame, motor_id[can_send_flag-1], 0.0);
   switch (can_send_flag) // change id of motor to be sent cmd
   {
     case 1:
@@ -214,9 +236,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) // 300us
  */
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) // fdcan1
 {
-  int pos_int=0;            
-	int spd_int=0;
-	int cur_int=0;
   HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &FDCAN12_RxFrame.Header, FDCAN12_RxFrame.Data);
 
   switch(FDCAN12_RxFrame.Header.Identifier) {
@@ -226,34 +245,53 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
       // Response frame type 1
       if (FDCAN12_RxFrame.Data[0] >> 5 == 1) {
         uint8_t motor_id_t = FDCAN12_RxFrame.Header.Identifier - 1; // motor ID - 1 = index in array
-        pos_int=FDCAN12_RxFrame.Data[1]<<8|FDCAN12_RxFrame.Data[2];
-			  spd_int=FDCAN12_RxFrame.Data[3]<<4|(FDCAN12_RxFrame.Data[4]&0xF0)>>4;
-			  cur_int=(FDCAN12_RxFrame.Data[4]&0x0F)<<8|FDCAN12_RxFrame.Data[5];
-			
-			  motor_rx_msg[motor_id_t].angle_actual_rad=uint_to_float(pos_int,POS_MIN,POS_MAX,16);
-			  motor_rx_msg[motor_id_t].speed_actual_rad=uint_to_float(spd_int,SPD_MIN,SPD_MAX,12);
-			  motor_rx_msg[motor_id_t].current_actual_float=uint_to_float(cur_int,I_MIN,I_MAX,12);
-			  motor_rx_msg[motor_id_t].temperature=(FDCAN12_RxFrame.Data[6]-50)/2;
+        // process motor feedback data
+        // raw data
+        motor_fbs_raw.left[motor_id_t].angle = FDCAN12_RxFrame.Data[1]<<8|FDCAN12_RxFrame.Data[2];
+        motor_fbs_raw.left[motor_id_t].speed = FDCAN12_RxFrame.Data[3]<<4|(FDCAN12_RxFrame.Data[4]&0xF0)>>4;
+        motor_fbs_raw.left[motor_id_t].current = (FDCAN12_RxFrame.Data[4]&0x0F)<<8|FDCAN12_RxFrame.Data[5];
+        // float data
+        motor_fbs_logical_float.left[motor_id_t].angle = uint_to_float(motor_fbs_raw.left[motor_id_t].angle,POS_MIN,POS_MAX,16);
+        motor_fbs_logical_float.left[motor_id_t].speed = uint_to_float(motor_fbs_raw.left[motor_id_t].speed,SPD_MIN,SPD_MAX,12);
+        motor_fbs_logical_float.left[motor_id_t].current = uint_to_float(motor_fbs_raw.left[motor_id_t].current,I_MIN,I_MAX,12);
 
         if(can_first_rev_flag[motor_id_t] == 1) // first receive, save initial pos
         {
-          motor_physical_initial_pos[motor_id_t] = motor_rx_msg[motor_id_t].angle_actual_rad;
+          motor_physical_initial_angle[motor_id_t] = motor_fbs_logical_float.left[motor_id_t].angle;
           can_first_rev_flag[motor_id_t] = 0;
         }
-        else
+        else // post process motor feedback data
         {
+          // logical feedback, logicalization
+          // motor_fbs_logical.left[motor_id_t].angle = (motor_fbs_raw.left[motor_id_t].angle
+          //                                             - motor_physical_initial_angle_int[motor_id_t]) * motor_direction_mask[motor_id_t]
+          //                                             + motor_logical_initial_angle_int[motor_id_t];
+          // motor_fbs_logical.left[motor_id_t].speed = motor_fbs_raw.left[motor_id_t].speed * motor_direction_mask[motor_id_t]; // convert to logical speed
+          // ! uint_to_float after logicalization will cause error
 
+          // logicalize float value
+          motor_fbs_logical_float.left[motor_id_t].angle = (motor_fbs_logical_float.left[motor_id_t].angle 
+                                                            - motor_physical_initial_angle[motor_id_t]) * motor_direction_mask[motor_id_t]
+                                                            + motor_logical_initial_angle[motor_id_t];
+          motor_fbs_logical_float.left[motor_id_t].speed *= motor_direction_mask[motor_id_t]; // convert to logical speed
+
+          // get integer value of logical feedback
+          motor_fbs_logical.left[motor_id_t].angle = float_to_uint(motor_fbs_logical_float.left[motor_id_t].angle,POS_MIN,POS_MAX,16);
+          motor_fbs_logical.left[motor_id_t].speed = float_to_uint(motor_fbs_logical_float.left[motor_id_t].speed,SPD_MIN,SPD_MAX,12);
         }
       }
       break;
   }
 }
 
+/**
+ * @brief FDCAN2 RX FIFO1 Callback function.
+ * 
+ * @param hfdcan      handle of FDCAN
+ * @param RxFifo0ITs  interrupt status of RX FIFO1
+ */
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) // fdcan2
 {
-  int pos_int=0;            
-	int spd_int=0;
-	int cur_int=0;
   HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &FDCAN12_RxFrame.Header, FDCAN12_RxFrame.Data);
 
   switch(FDCAN12_RxFrame.Header.Identifier) { // judge the motor ID
@@ -263,24 +301,36 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
       // Response frame type 1
       if (FDCAN12_RxFrame.Data[0] >> 5 == 1) {
         uint8_t motor_id_t = FDCAN12_RxFrame.Header.Identifier - 1; // motor ID - 1 = index in array
-        pos_int=FDCAN12_RxFrame.Data[1]<<8|FDCAN12_RxFrame.Data[2];
-			  spd_int=FDCAN12_RxFrame.Data[3]<<4|(FDCAN12_RxFrame.Data[4]&0xF0)>>4;
-			  cur_int=(FDCAN12_RxFrame.Data[4]&0x0F)<<8|FDCAN12_RxFrame.Data[5];
-			
-			  motor_rx_msg[motor_id_t+MOTOR_NUM_PER_LEG].angle_actual_rad=uint_to_float(pos_int,POS_MIN,POS_MAX,16);
-			  motor_rx_msg[motor_id_t+MOTOR_NUM_PER_LEG].speed_actual_rad=uint_to_float(spd_int,SPD_MIN,SPD_MAX,12);
-			  motor_rx_msg[motor_id_t+MOTOR_NUM_PER_LEG].current_actual_float=uint_to_float(cur_int,I_MIN,I_MAX,12);
-			  motor_rx_msg[motor_id_t+MOTOR_NUM_PER_LEG].temperature=(FDCAN12_RxFrame.Data[6]-50)/2;
+        // process motor feedback data
+        // raw data
+        motor_fbs_raw.right[motor_id_t].angle = FDCAN12_RxFrame.Data[1]<<8|FDCAN12_RxFrame.Data[2];
+        motor_fbs_raw.right[motor_id_t].speed = FDCAN12_RxFrame.Data[3]<<4|(FDCAN12_RxFrame.Data[4]&0xF0)>>4;
+        motor_fbs_raw.right[motor_id_t].current = (FDCAN12_RxFrame.Data[4]&0x0F)<<8|FDCAN12_RxFrame.Data[5];
+        // float data
+        motor_fbs_logical_float.right[motor_id_t].angle = uint_to_float(motor_fbs_raw.right[motor_id_t].angle,POS_MIN,POS_MAX,16);
+        motor_fbs_logical_float.right[motor_id_t].speed = uint_to_float(motor_fbs_raw.right[motor_id_t].speed,SPD_MIN,SPD_MAX,12);
+        motor_fbs_logical_float.right[motor_id_t].current = uint_to_float(motor_fbs_raw.right[motor_id_t].current,I_MIN,I_MAX,12);
+
         if(can_first_rev_flag[motor_id_t+MOTOR_NUM_PER_LEG] == 1) // first receive, save initial pos
         {
-          motor_physical_initial_pos[motor_id_t+MOTOR_NUM_PER_LEG] = motor_rx_msg[motor_id_t+MOTOR_NUM_PER_LEG].angle_actual_rad;
+          motor_physical_initial_angle[motor_id_t+MOTOR_NUM_PER_LEG] = motor_fbs_logical_float.right[motor_id_t].angle;
           can_first_rev_flag[motor_id_t+MOTOR_NUM_PER_LEG] = 0;
         }
-        else
+        else // post process motor feedback data
         {
+          // logicalize float value
+          motor_fbs_logical_float.right[motor_id_t].angle = (motor_fbs_logical_float.right[motor_id_t].angle 
+                                                            - motor_physical_initial_angle[motor_id_t+MOTOR_NUM_PER_LEG]) * motor_direction_mask[motor_id_t+MOTOR_NUM_PER_LEG]
+                                                            + motor_logical_initial_angle[motor_id_t+MOTOR_NUM_PER_LEG];
+          motor_fbs_logical_float.right[motor_id_t].speed *= motor_direction_mask[motor_id_t+MOTOR_NUM_PER_LEG]; // convert to logical speed
 
+          // get integer value of logical feedback
+          motor_fbs_logical.right[motor_id_t].angle = float_to_uint(motor_fbs_logical_float.right[motor_id_t].angle,POS_MIN,POS_MAX,16);
+          motor_fbs_logical.right[motor_id_t].speed = float_to_uint(motor_fbs_logical_float.right[motor_id_t].speed,SPD_MIN,SPD_MAX,12);
         }
       }
       break;
   }
 }
+
+/**********************Motor Utility Functions **************************/

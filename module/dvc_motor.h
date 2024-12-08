@@ -52,11 +52,63 @@ typedef struct
 	uint16_t	feedback_KD;
 }Motor_Msg;
 
+// Selected raw motor feedback data, for lower board debug
+typedef struct
+{
+    int32_t angle;
+    int32_t speed;
+    int32_t current;
+}MotorFeedbackRaw;
+
+// Integration of MotorFeedback
+// 0-hip, 1-thigh, 2-calf
+typedef struct
+{
+    MotorFeedbackRaw left[MOTOR_NUM_PER_LEG];
+    MotorFeedbackRaw right[MOTOR_NUM_PER_LEG];
+}MotorFeedbacksRaw;
+
+// motor feedback data processed into logical values with int32_t type
+// transimitted to upper board
+// 8 bytes
+typedef struct
+{
+    int32_t angle;
+    int32_t speed;
+}MotorFeedbackLogical;
+
+// Integration of MotorFeedbackLogical
+// 48 bytes
+typedef struct
+{
+    MotorFeedbackLogical left[MOTOR_NUM_PER_LEG];
+    MotorFeedbackLogical right[MOTOR_NUM_PER_LEG];
+}MotorFeedbacksLogical;
+
+// motor feedback data processed into logical values with float type, for lower board demo
+// this will be implemented on upper board
+typedef struct
+{
+    double angle;   // [rad], angle of motor shaft
+    double speed;   // [rad/s], speed of motor shaft
+    double current; // [A], current of motor
+}MotorFeedbackLogicalFloat;
+
+typedef struct
+{
+    MotorFeedbackLogicalFloat left[MOTOR_NUM_PER_LEG];
+    MotorFeedbackLogicalFloat right[MOTOR_NUM_PER_LEG];
+}MotorFeedbacksLogicalFloat;
+
 void SetMotorPosition(FDCAN_TxFrame_TypeDef *TxFrame, uint16_t motor_id, float position_des, float velocity_des);
 void SetMotorVelocity(FDCAN_TxFrame_TypeDef *TxFrame, uint16_t motor_id, float speed_des);
 void SetMotorTorque(FDCAN_TxFrame_TypeDef *TxFrame, uint16_t motor_id, float torque_des);
 void MotorIDReading(FDCAN_TxFrame_TypeDef *TxFrame);
 void MotorIDSetting(FDCAN_TxFrame_TypeDef *TxFrame, uint16_t motor_id, uint16_t motor_id_new);
 void MotorCommModeReading(FDCAN_TxFrame_TypeDef *TxFrame, uint16_t motor_id);
+
+void motor_init(void);
+const MotorFeedbacksLogical* motor_get_feedbacks_logical();
+float* motor_get_torque_des();
 
 #endif

@@ -73,6 +73,7 @@ static void MPU_Config(void);
 static void init_motors()
 {
 	FDCAN_Init();
+  motor_init();
 }
 
 static void init_rc()
@@ -135,7 +136,9 @@ int main(void)
   /* USER CODE BEGIN 2 */
 	init_system();
   HAL_Delay(100); // wait for system init
+  start_sbus_reception();
   start_send_motor_cmd();
+  // spi reception will be triggered by GPIO_EXTI interrupt, already started
 
   /* USER CODE END 2 */
 
