@@ -1,3 +1,13 @@
+/**
+ * @file    sbus.h
+ * @author  lupinjia(jason_1120202397@163.com)
+ * @brief   contains functions used to receive and decode SBUS data from remote controller.
+ * @version 1.0
+ * @date    2024-12-08
+ * 
+ * @copyright HYGroup@BIT 2024
+ * 
+ */
 #ifndef __SBUS_H__
 #define __SBUS_H__
 /********** Includes **********/

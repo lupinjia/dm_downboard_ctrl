@@ -73,7 +73,6 @@ static void MPU_Config(void);
 static void init_motors()
 {
 	FDCAN_Init();
-  motor_init();
 }
 
 static void init_rc()

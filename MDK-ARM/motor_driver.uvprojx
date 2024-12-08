@@ -1120,16 +1120,6 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>algorithm</GroupName>
-          <Files>
-            <File>
-              <FileName>pd.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\algorithm\pd.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
           <GroupName>::CMSIS</GroupName>
         </Group>
       </Groups>

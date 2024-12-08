@@ -1,3 +1,13 @@
+/**
+ * @file    dvc_motor.c
+ * @author  lupinjia(jason_1120202397@163.com)
+ * @brief   contains driver functions for EC-A8112-P1-18 motor from encos(因克斯电机), utility functions and some interrupt callback functions.
+ * @version 1.0
+ * @date    2024-12-08
+ * 
+ * @copyright HYGroup@BIT 2024
+ * 
+ */
 #include "dvc_motor.h"
 #include "math_ops.h"
 
@@ -7,17 +17,15 @@ static uint8_t       can_send_flag = 1; // choose which id to send cmd
 
 // to save initial pos of motors
 static uint8_t can_first_rev_flag[MOTOR_NUM_TOTAL] = {1, 1, 1, 1, 1, 1};
-float   motor_physical_initial_angle[MOTOR_NUM_TOTAL] = {0, 0, 0, 0, 0, 0};
+static float   motor_physical_initial_angle[MOTOR_NUM_TOTAL] = {0, 0, 0, 0, 0, 0}; // record physical initial angle of motors, for converting physical pos to logical pos
 const static float motor_logical_initial_angle[MOTOR_NUM_TOTAL] = {0.33, 1.3, -2.00, // [rad]
                                                                      -0.33, 1.3, -2.00};
 const static int8_t motor_direction_mask[MOTOR_NUM_TOTAL] = {1, 1, 1, 1, -1, -1}; // direction mask, to convert physical pos to logical pos
 
 float motor_torque_des[MOTOR_NUM_TOTAL] = {0, 0, 0, 0, 0, 0};
 
-Motor_Msg motor_rx_msg[MOTOR_NUM_TOTAL];
-MotorFeedbacksRaw motor_fbs_raw;
-MotorFeedbacksLogical motor_fbs_logical;
-MotorFeedbacksLogicalFloat motor_fbs_logical_float; // for lower board demo
+MotorFeedbacksLogical motor_fbs_logical;            // int type, data sent to upboard
+MotorFeedbacksLogicalFloat motor_fbs_logical_float; // float type, for processing and debug
 
 /**********************Motor Driver Functions **************************/
 
@@ -177,23 +185,29 @@ void MotorCommModeReading(FDCAN_TxFrame_TypeDef *TxFrame, uint16_t motor_id)
 /**********************Motor Driver Functions **************************/
 
 /**********************Motor Utility Functions **************************/
-void motor_init()
-{
 
-}
-
+/**
+ * @brief   get motor logical feedbacks pointer
+ * @details This function is called on initilization of upper_comm to get the pointer to motor_fbs_logical, which is then packed and sent to upboard.
+ * @return  pointer to motor_fbs_logical
+ */
 const MotorFeedbacksLogical* motor_get_feedbacks_logical()
 {
   return &motor_fbs_logical;
 }
-
+/**
+ * @brief   get motor desired torque pointer
+ * @details This function is called on initilization of upper_comm to get the pointer to motor_torque_des, which is updated with the data received from upboard.
+ * @return  pointer to motor_torque_des
+ */
 float* motor_get_torque_des()
 {
   return motor_torque_des;
 }
 
+/**********************Motor Utility Functions **************************/
 /**
- * @brief   send command to motor, callback for TIM6
+ * @brief   send command to motor, callback for TIM7
  * @details the frequency of this function is 300us, which means each motor will receive its cmd every 900us.
  * @return  none
  */
@@ -220,9 +234,9 @@ static void send_cmd()
   }
 }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) // 300us
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  if(htim->Instance == TIM7) // 300us period, nearly 1ms for each motor
+  if(htim->Instance == TIM7) // 300us period, 900us command period for each motor
   {
     send_cmd();
   }
@@ -234,8 +248,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) // 300us
  * @param hfdcan      handle of FDCAN
  * @param RxFifo0ITs  interrupt status of RX FIFO0
  */
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) // fdcan1
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
+  int angle;
+  int speed;
+  int current;
   HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &FDCAN12_RxFrame.Header, FDCAN12_RxFrame.Data);
 
   switch(FDCAN12_RxFrame.Header.Identifier) {
@@ -246,14 +263,13 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
       if (FDCAN12_RxFrame.Data[0] >> 5 == 1) {
         uint8_t motor_id_t = FDCAN12_RxFrame.Header.Identifier - 1; // motor ID - 1 = index in array
         // process motor feedback data
-        // raw data
-        motor_fbs_raw.left[motor_id_t].angle = FDCAN12_RxFrame.Data[1]<<8|FDCAN12_RxFrame.Data[2];
-        motor_fbs_raw.left[motor_id_t].speed = FDCAN12_RxFrame.Data[3]<<4|(FDCAN12_RxFrame.Data[4]&0xF0)>>4;
-        motor_fbs_raw.left[motor_id_t].current = (FDCAN12_RxFrame.Data[4]&0x0F)<<8|FDCAN12_RxFrame.Data[5];
+        angle = FDCAN12_RxFrame.Data[1]<<8|FDCAN12_RxFrame.Data[2];
+        speed = FDCAN12_RxFrame.Data[3]<<4|(FDCAN12_RxFrame.Data[4]&0xF0)>>4;
+        current = (FDCAN12_RxFrame.Data[4]&0x0F)<<8|FDCAN12_RxFrame.Data[5];
         // float data
-        motor_fbs_logical_float.left[motor_id_t].angle = uint_to_float(motor_fbs_raw.left[motor_id_t].angle,POS_MIN,POS_MAX,16);
-        motor_fbs_logical_float.left[motor_id_t].speed = uint_to_float(motor_fbs_raw.left[motor_id_t].speed,SPD_MIN,SPD_MAX,12);
-        motor_fbs_logical_float.left[motor_id_t].current = uint_to_float(motor_fbs_raw.left[motor_id_t].current,I_MIN,I_MAX,12);
+        motor_fbs_logical_float.left[motor_id_t].angle = uint_to_float(angle,POS_MIN,POS_MAX,16);
+        motor_fbs_logical_float.left[motor_id_t].speed = uint_to_float(speed,SPD_MIN,SPD_MAX,12);
+        motor_fbs_logical_float.left[motor_id_t].current = uint_to_float(current,I_MIN,I_MAX,12);
 
         if(can_first_rev_flag[motor_id_t] == 1) // first receive, save initial pos
         {
@@ -290,8 +306,11 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
  * @param hfdcan      handle of FDCAN
  * @param RxFifo0ITs  interrupt status of RX FIFO1
  */
-void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) // fdcan2
+void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
+  int angle;
+  int speed;
+  int current;
   HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &FDCAN12_RxFrame.Header, FDCAN12_RxFrame.Data);
 
   switch(FDCAN12_RxFrame.Header.Identifier) { // judge the motor ID
@@ -302,14 +321,13 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
       if (FDCAN12_RxFrame.Data[0] >> 5 == 1) {
         uint8_t motor_id_t = FDCAN12_RxFrame.Header.Identifier - 1; // motor ID - 1 = index in array
         // process motor feedback data
-        // raw data
-        motor_fbs_raw.right[motor_id_t].angle = FDCAN12_RxFrame.Data[1]<<8|FDCAN12_RxFrame.Data[2];
-        motor_fbs_raw.right[motor_id_t].speed = FDCAN12_RxFrame.Data[3]<<4|(FDCAN12_RxFrame.Data[4]&0xF0)>>4;
-        motor_fbs_raw.right[motor_id_t].current = (FDCAN12_RxFrame.Data[4]&0x0F)<<8|FDCAN12_RxFrame.Data[5];
+        angle = FDCAN12_RxFrame.Data[1]<<8|FDCAN12_RxFrame.Data[2];
+        speed = FDCAN12_RxFrame.Data[3]<<4|(FDCAN12_RxFrame.Data[4]&0xF0)>>4;
+        current = (FDCAN12_RxFrame.Data[4]&0x0F)<<8|FDCAN12_RxFrame.Data[5];
         // float data
-        motor_fbs_logical_float.right[motor_id_t].angle = uint_to_float(motor_fbs_raw.right[motor_id_t].angle,POS_MIN,POS_MAX,16);
-        motor_fbs_logical_float.right[motor_id_t].speed = uint_to_float(motor_fbs_raw.right[motor_id_t].speed,SPD_MIN,SPD_MAX,12);
-        motor_fbs_logical_float.right[motor_id_t].current = uint_to_float(motor_fbs_raw.right[motor_id_t].current,I_MIN,I_MAX,12);
+        motor_fbs_logical_float.right[motor_id_t].angle = uint_to_float(angle,POS_MIN,POS_MAX,16);
+        motor_fbs_logical_float.right[motor_id_t].speed = uint_to_float(speed,SPD_MIN,SPD_MAX,12);
+        motor_fbs_logical_float.right[motor_id_t].current = uint_to_float(current,I_MIN,I_MAX,12);
 
         if(can_first_rev_flag[motor_id_t+MOTOR_NUM_PER_LEG] == 1) // first receive, save initial pos
         {
@@ -333,4 +351,3 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
   }
 }
 
-/**********************Motor Utility Functions **************************/

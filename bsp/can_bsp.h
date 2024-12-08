@@ -1,3 +1,13 @@
+/**
+ * @file    can_bsp.c
+ * @author  Shengcong Sang
+ * @brief   board support package for can(fdcan) driver
+ * @version 1.0
+ * @date    2024-12-08
+ * 
+ * @copyright HYGroup@BIT 2024
+ * 
+ */
 #ifndef BSP_CAN_H
 #define BSP_CAN_H
 

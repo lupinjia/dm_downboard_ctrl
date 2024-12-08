@@ -1,3 +1,13 @@
+/**
+ * @file    can_bsp.c
+ * @author  Shengcong Sang
+ * @brief   board support package for can(fdcan) driver
+ * @version 1.0
+ * @date    2024-12-08
+ * 
+ * @copyright HYGroup@BIT 2024
+ * 
+ */
 #include "can_bsp.h"
 
 FDCAN_TxFrame_TypeDef FDCAN1_TxFrame = {
@@ -55,6 +65,8 @@ void FDCAN_Init(void) {
 	HAL_FDCAN_Start(&hfdcan2);
 
 	// Activate FDCAN1 and FDCAN2 RX new message notification
+	// FDCAN1->RX FIFO0
+	// FDCAN2->RX FIFO1
 	HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0);
 	HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0);
 }

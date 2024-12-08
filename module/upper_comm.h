@@ -1,3 +1,13 @@
+/**
+ * @file    upper_comm.h
+ * @author  lupinjia(jason_1120202397@163.com)
+ * @brief   contains functions used to communicate with upper board(RDKX5) through SPI.
+ * @version 1.0
+ * @date    2024-12-08
+ * 
+ * @copyright HYGroup@BIT 2024
+ * 
+ */
 #ifndef __UPPER_COMM_H__
 #define __UPPER_COMM_H__
 
