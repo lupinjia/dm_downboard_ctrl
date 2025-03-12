@@ -213,7 +213,9 @@ float* motor_get_torque_des()
  */
 static void send_cmd()
 {
+  // left leg
   SetMotorTorque(&FDCAN1_TxFrame, motor_id[can_send_flag-1], motor_torque_des[can_send_flag-1] * motor_direction_mask[can_send_flag-1]);
+  // right leg
   SetMotorTorque(&FDCAN2_TxFrame, motor_id[can_send_flag-1], motor_torque_des[can_send_flag-1+MOTOR_NUM_PER_LEG] * motor_direction_mask[can_send_flag-1+MOTOR_NUM_PER_LEG]);
   // SetMotorTorque(&FDCAN1_TxFrame, motor_id[can_send_flag-1], 0.0);
   // SetMotorTorque(&FDCAN2_TxFrame, motor_id[can_send_flag-1], 0.0);
