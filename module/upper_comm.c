@@ -81,14 +81,12 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
    {
       motor_torque_des_ptr[i] = (float)(upper2lower_msg.torque_des[i] / 100000.0);
    }
+	 
+	 update_lower2upper_msg();
+	 HAL_SPI_TransmitReceive_DMA(&hspi3, (uint8_t*)&lower2upper_msg, (uint8_t*)&upper2lower_msg, sizeof(Lower2UpperMsg));
 }
 
-/**
- * @brief Callback function for GPIO EXTI interrupt(falling edge)
- * @note  detects falling edge on Chip Select pin(Software), and sends lower2upper_msg to upper board.
- * @param GPIO_Pin the pin number of the interrupt source
- */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // falling edge
+void start_spi_comm()
 {
 	update_lower2upper_msg();
 	HAL_SPI_TransmitReceive_DMA(&hspi3, (uint8_t*)&lower2upper_msg, (uint8_t*)&upper2lower_msg, sizeof(Lower2UpperMsg));

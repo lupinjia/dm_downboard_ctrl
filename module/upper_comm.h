@@ -48,6 +48,8 @@ void upper_comm_init(void);
 
 void update_lower2upper_msg(void);
 
+void start_spi_comm(void);
+
 #pragma pack(pop) // restore byte alignment
 
 #endif //__UPPER_COMM_H__
