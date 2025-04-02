@@ -294,8 +294,8 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
           motor_fbs_logical_float.left[motor_id_t].speed *= motor_direction_mask[motor_id_t]; // convert to logical speed
 
           // get integer value of logical feedback
-          motor_fbs_logical.left[motor_id_t].angle = float_to_uint(motor_fbs_logical_float.left[motor_id_t].angle,POS_MIN,POS_MAX,16);
-          motor_fbs_logical.left[motor_id_t].speed = float_to_uint(motor_fbs_logical_float.left[motor_id_t].speed,SPD_MIN,SPD_MAX,12);
+          motor_fbs_logical.left[motor_id_t].angle = (int16_t)(motor_fbs_logical_float.left[motor_id_t].angle * 1000);
+          motor_fbs_logical.left[motor_id_t].speed = (int16_t)(motor_fbs_logical_float.left[motor_id_t].speed * 1000);
         }
       }
       break;
@@ -345,8 +345,8 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
           motor_fbs_logical_float.right[motor_id_t].speed *= motor_direction_mask[motor_id_t+MOTOR_NUM_PER_LEG]; // convert to logical speed
 
           // get integer value of logical feedback
-          motor_fbs_logical.right[motor_id_t].angle = float_to_uint(motor_fbs_logical_float.right[motor_id_t].angle,POS_MIN,POS_MAX,16);
-          motor_fbs_logical.right[motor_id_t].speed = float_to_uint(motor_fbs_logical_float.right[motor_id_t].speed,SPD_MIN,SPD_MAX,12);
+          motor_fbs_logical.right[motor_id_t].angle = (int16_t)(motor_fbs_logical_float.right[motor_id_t].angle * 1000);
+          motor_fbs_logical.right[motor_id_t].speed = (int16_t)(motor_fbs_logical_float.right[motor_id_t].speed * 1000);
         }
       }
       break;

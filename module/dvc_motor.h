@@ -60,15 +60,15 @@ typedef struct
 
 // motor feedback data processed into logical values with int32_t type
 // transimitted to upper board
-// 8 bytes
+// 4 bytes
 typedef struct
 {
-    int32_t angle;
-    int32_t speed;
+    int16_t angle;
+    int16_t speed;
 }MotorFeedbackLogical;
 
 // Integration of MotorFeedbackLogical
-// 48 bytes
+// 24 bytes
 typedef struct
 {
     MotorFeedbackLogical left[MOTOR_NUM_PER_LEG];
@@ -79,9 +79,9 @@ typedef struct
 // this will be implemented on upper board
 typedef struct
 {
-    double angle;   // [rad], angle of motor shaft
-    double speed;   // [rad/s], speed of motor shaft
-    double current; // [A], current of motor
+    float angle;   // [rad], angle of motor shaft
+    float speed;   // [rad/s], speed of motor shaft
+    float current; // [A], current of motor
 }MotorFeedbackLogicalFloat;
 
 typedef struct
