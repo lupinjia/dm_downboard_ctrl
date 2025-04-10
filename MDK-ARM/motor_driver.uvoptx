@@ -185,7 +185,12 @@
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>lower2upper_msg,0x0A</ItemText>
+          <ItemText>lower2upper_msg,0x10</ItemText>
+        </Ww>
+        <Ww>
+          <count>3</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>rc_data,0x0A</ItemText>
         </Ww>
       </WatchWindow1>
       <Tracepoint>

@@ -14,7 +14,7 @@
 #include "usart.h"
 
 static uint8_t uart5_rx_buf[UART5_RX_BUFFER_SIZE] = {0};
-static RC_ChannelData rc_data;
+RC_ChannelData rc_data;
 
 /**
  * @brief convert switch value from raw data to 0, 1, 2

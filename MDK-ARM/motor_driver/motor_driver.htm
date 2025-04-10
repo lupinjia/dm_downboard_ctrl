@@ -3,7 +3,7 @@
 <title>Static Call Graph - [motor_driver\motor_driver.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image motor_driver\motor_driver.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 6130100: Last Updated: Wed Apr  2 10:20:23 2025
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 6130100: Last Updated: Thu Apr 10 10:51:55 2025
 <BR><P>
 <H3>Maximum Stack Usage =        368 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
@@ -1338,15 +1338,15 @@ Global Symbols
 </UL>
 
 <P><STRONG><a name="[fb]"></a>HAL_SPI_Init</STRONG> (Thumb, 396 bytes, Stack size 32 bytes, stm32h7xx_hal_spi.o(.text.HAL_SPI_Init))
-<BR><BR>[Stack]<UL><LI>Max Depth = 328<LI>Call Chain = HAL_SPI_Init &rArr; HAL_SPI_MspInit &rArr; HAL_RCCEx_PeriphCLKConfig &rArr; RCCEx_PLL3_Config
+<BR><BR>[Stack]<UL><LI>Max Depth = 336<LI>Call Chain = HAL_SPI_Init &rArr; HAL_SPI_MspInit &rArr; HAL_RCCEx_PeriphCLKConfig &rArr; RCCEx_PLL3_Config
 </UL>
 <BR>[Calls]<UL><LI><a href="#[fc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_SPI_MspInit
 </UL>
 <BR>[Called By]<UL><LI><a href="#[122]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_SPI3_Init
 </UL>
 
-<P><STRONG><a name="[fc]"></a>HAL_SPI_MspInit</STRONG> (Thumb, 268 bytes, Stack size 240 bytes, spi.o(.text.HAL_SPI_MspInit))
-<BR><BR>[Stack]<UL><LI>Max Depth = 296<LI>Call Chain = HAL_SPI_MspInit &rArr; HAL_RCCEx_PeriphCLKConfig &rArr; RCCEx_PLL3_Config
+<P><STRONG><a name="[fc]"></a>HAL_SPI_MspInit</STRONG> (Thumb, 304 bytes, Stack size 248 bytes, spi.o(.text.HAL_SPI_MspInit))
+<BR><BR>[Stack]<UL><LI>Max Depth = 304<LI>Call Chain = HAL_SPI_MspInit &rArr; HAL_RCCEx_PeriphCLKConfig &rArr; RCCEx_PLL3_Config
 </UL>
 <BR>[Calls]<UL><LI><a href="#[9b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_NVIC_SetPriority
 <LI><a href="#[9c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_NVIC_EnableIRQ
@@ -1631,7 +1631,7 @@ Global Symbols
 </UL>
 
 <P><STRONG><a name="[122]"></a>MX_SPI3_Init</STRONG> (Thumb, 68 bytes, Stack size 8 bytes, spi.o(.text.MX_SPI3_Init))
-<BR><BR>[Stack]<UL><LI>Max Depth = 336<LI>Call Chain = MX_SPI3_Init &rArr; HAL_SPI_Init &rArr; HAL_SPI_MspInit &rArr; HAL_RCCEx_PeriphCLKConfig &rArr; RCCEx_PLL3_Config
+<BR><BR>[Stack]<UL><LI>Max Depth = 344<LI>Call Chain = MX_SPI3_Init &rArr; HAL_SPI_Init &rArr; HAL_SPI_MspInit &rArr; HAL_RCCEx_PeriphCLKConfig &rArr; RCCEx_PLL3_Config
 </UL>
 <BR>[Calls]<UL><LI><a href="#[e0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Error_Handler
 <LI><a href="#[fb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_SPI_Init
