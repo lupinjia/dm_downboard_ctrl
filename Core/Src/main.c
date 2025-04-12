@@ -137,7 +137,7 @@ int main(void)
   HAL_Delay(100); // wait for system init
   start_sbus_reception();
   start_send_motor_cmd();
-	// start_spi_comm();
+	start_spi_comm();
 
   /* USER CODE END 2 */
 
@@ -146,11 +146,11 @@ int main(void)
   while (1)
   {
     // HAL_Delay(1); // 2ms delay for pos_des update
-    read_pin = HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_14);
-    if(read_pin == GPIO_PIN_RESET) // falling edge
-    {
-      HAL_Delay(0);
-    }
+    // read_pin = HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_14);
+    // if(read_pin == GPIO_PIN_RESET) // falling edge
+    // {
+    //   HAL_Delay(0);
+    // }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

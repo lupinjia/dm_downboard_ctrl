@@ -82,8 +82,8 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
       motor_torque_des_ptr[i] = (float)(upper2lower_msg.torque_des[i] / 100000.0);
    }
 	 
-	// update_lower2upper_msg();
-	// HAL_SPI_TransmitReceive_DMA(&hspi3, (uint8_t*)&lower2upper_msg, (uint8_t*)&upper2lower_msg, sizeof(Lower2UpperMsg));
+	update_lower2upper_msg();
+	HAL_SPI_TransmitReceive_DMA(&hspi3, (uint8_t*)&lower2upper_msg, (uint8_t*)&upper2lower_msg, sizeof(Lower2UpperMsg));
 }
 
 void start_spi_comm()
