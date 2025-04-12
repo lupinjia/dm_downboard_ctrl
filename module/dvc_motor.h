@@ -99,5 +99,6 @@ void MotorCommModeReading(FDCAN_TxFrame_TypeDef *TxFrame, uint16_t motor_id);
 
 const MotorFeedbacksLogical* motor_get_feedbacks_logical();
 float* motor_get_torque_des();
+void send_motor_cmd();
 
 #endif

@@ -211,7 +211,7 @@ float* motor_get_torque_des()
  * @details the frequency of this function is 300us, which means each motor will receive its cmd every 900us.
  * @return  none
  */
-static void send_cmd()
+void send_motor_cmd()
 {
   // left leg
   SetMotorTorque(&FDCAN1_TxFrame, motor_id[can_send_flag-1], motor_torque_des[can_send_flag-1] * motor_direction_mask[can_send_flag-1]);
@@ -233,14 +233,6 @@ static void send_cmd()
     default:
       can_send_flag = 1;
       break;
-  }
-}
-
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-  if(htim->Instance == TIM7) // 300us period, 900us command period for each motor
-  {
-    send_cmd();
   }
 }
 

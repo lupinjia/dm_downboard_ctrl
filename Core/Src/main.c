@@ -55,7 +55,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+int read_pin = 0;
 
 /* USER CODE END PV */
 
@@ -137,8 +137,7 @@ int main(void)
   HAL_Delay(100); // wait for system init
   start_sbus_reception();
   start_send_motor_cmd();
-	start_spi_comm();
-  // spi reception will be triggered by GPIO_EXTI interrupt, already started
+	// start_spi_comm();
 
   /* USER CODE END 2 */
 
@@ -146,7 +145,12 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_Delay(1); // 2ms delay for pos_des update
+    // HAL_Delay(1); // 2ms delay for pos_des update
+    read_pin = HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_14);
+    if(read_pin == GPIO_PIN_RESET) // falling edge
+    {
+      HAL_Delay(0);
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -213,6 +217,24 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if(htim->Instance == TIM7) // 300us period, 900us command period for each motor
+  {
+    send_motor_cmd();
+  }
+}
+
+// void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+// {
+//   if(GPIO_Pin == GPIO_PIN_14) // SBUS RX pin
+//   {
+//     if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_14) == GPIO_PIN_RESET) // falling edge
+//     {
+//       start_spi_comm();
+//     }
+//   }
+// }
 
 /* USER CODE END 4 */
 
