@@ -23,14 +23,12 @@
 #include "memorymap.h"
 #include "spi.h"
 #include "tim.h"
-#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <string.h>
 #include "param.h"
-#include "sbus.h"
 #include "upper_comm.h"
 #include "can_bsp.h"
 #include "dvc_motor.h"
@@ -75,14 +73,8 @@ static void init_motors()
 	FDCAN_Init();
 }
 
-static void init_rc()
-{
-  sbus_init();
-}
-
 static void init_system()
 {
-  init_rc();
   init_motors();
   upper_comm_init();
 }
@@ -131,11 +123,9 @@ int main(void)
   MX_TIM7_Init();
   MX_FDCAN2_Init();
   MX_SPI3_Init();
-  MX_UART5_Init();
   /* USER CODE BEGIN 2 */
 	init_system();
   HAL_Delay(100); // wait for system init
-  start_sbus_reception();
   start_send_motor_cmd();
 	start_spi_comm();
 
@@ -145,12 +135,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // HAL_Delay(1); // 2ms delay for pos_des update
-    // read_pin = HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_14);
-    // if(read_pin == GPIO_PIN_RESET) // falling edge
-    // {
-    //   HAL_Delay(0);
-    // }
+    HAL_Delay(1); // 2ms delay for pos_des update
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -225,16 +210,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   }
 }
 
-// void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-// {
-//   if(GPIO_Pin == GPIO_PIN_14) // SBUS RX pin
-//   {
-//     if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_14) == GPIO_PIN_RESET) // falling edge
-//     {
-//       start_spi_comm();
-//     }
-//   }
-// }
+//void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+//{
+//  if(GPIO_Pin == GPIO_PIN_9)
+//  {
+//      start_spi_comm();
+//  }
+//}
 
 /* USER CODE END 4 */
 

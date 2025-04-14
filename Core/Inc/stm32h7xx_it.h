@@ -55,13 +55,11 @@ void SVC_Handler(void);
 void DebugMon_Handler(void);
 void PendSV_Handler(void);
 void SysTick_Handler(void);
-void DMA1_Stream0_IRQHandler(void);
 void DMA1_Stream1_IRQHandler(void);
 void DMA1_Stream2_IRQHandler(void);
 void FDCAN1_IT0_IRQHandler(void);
 void FDCAN2_IT0_IRQHandler(void);
 void SPI3_IRQHandler(void);
-void UART5_IRQHandler(void);
 void TIM7_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 

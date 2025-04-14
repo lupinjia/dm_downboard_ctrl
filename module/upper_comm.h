@@ -11,33 +11,30 @@
 #ifndef __UPPER_COMM_H__
 #define __UPPER_COMM_H__
 
-#include "sbus.h"
 #include "spi.h"
 #include "dvc_motor.h"
 
 #pragma pack(push, 1) // cancel byte alignment
 
 // Message transmitted to upper board
-// 47 bytes
+// 32 bytes
 typedef struct 
 {
   uint8_t header1;
   uint8_t header2;
   MotorFeedbacksLogical motor_fbs_logical; // 24 bytes
-  RC_DataProcessed      rc_data_processed; // 15 bytes
   uint32_t crc32;
   uint8_t tail1;
   uint8_t tail2;
 }Lower2UpperMsg;
 
 // Message received from upper board
-// 47 bytes
+// 32 bytes
 typedef struct
 {
   uint8_t header1;
   uint8_t header2;
   int32_t torque_des[MOTOR_NUM_TOTAL];
-  uint8_t redundancy[15];
   uint32_t crc32;
   uint8_t tail1;
   uint8_t tail2;

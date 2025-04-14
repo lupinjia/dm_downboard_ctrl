@@ -13,7 +13,6 @@
 #include "tim.h"
 
 const static MotorFeedbacksLogical* motor_fbs_logical_ptr = NULL;
-const static RC_DataProcessed*      rc_data_processed_ptr = NULL;
 static float* motor_torque_des_ptr = NULL;
 Lower2UpperMsg lower2upper_msg; // message sent to upper board
 Upper2LowerMsg upper2lower_msg; // message received from upper board
@@ -22,7 +21,6 @@ void upper_comm_init(void)
 {
   motor_fbs_logical_ptr = motor_get_feedbacks_logical();
   motor_torque_des_ptr = motor_get_torque_des();
-  rc_data_processed_ptr = sbus_get_rc_data_processed();
   memset(&lower2upper_msg, 0, sizeof(Lower2UpperMsg));
   memset(&upper2lower_msg, 0, sizeof(Upper2LowerMsg));
 }
@@ -61,8 +59,7 @@ static uint32_t calc_crc32(const uint8_t *data, uint8_t len)
 void update_lower2upper_msg(void)
 {
   memcpy(&lower2upper_msg.motor_fbs_logical, motor_fbs_logical_ptr, sizeof(MotorFeedbacksLogical));
-  memcpy(&lower2upper_msg.rc_data_processed, rc_data_processed_ptr, sizeof(RC_DataProcessed));
-  lower2upper_msg.crc32 = calc_crc32((uint8_t*)&lower2upper_msg.motor_fbs_logical, sizeof(MotorFeedbacksLogical)+sizeof(RC_DataProcessed));
+  lower2upper_msg.crc32 = calc_crc32((uint8_t*)&lower2upper_msg.motor_fbs_logical, sizeof(MotorFeedbacksLogical));
   lower2upper_msg.header1 = 0xAA;
   lower2upper_msg.header2 = 0xBB;
   lower2upper_msg.tail1 = 0xEE;

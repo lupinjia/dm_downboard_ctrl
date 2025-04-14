@@ -37,12 +37,9 @@ motor_driver/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_spi_ex.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_tim.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_tim_ex.h \
-  ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_uart.h \
-  ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_uart_ex.h \
   ..\Core\Inc\dma.h ..\Core\Inc\main.h ..\Core\Inc\fdcan.h \
   ..\Core\Inc\memorymap.h ..\Core\Inc\spi.h ..\Core\Inc\tim.h \
-  ..\Core\Inc\usart.h ..\Core\Inc\gpio.h \
+  ..\Core\Inc\gpio.h \
   D:\software\keilv5\ARM\ARMCLANG\Bin\..\include\string.h \
-  ..\common\param.h ..\module\sbus.h ..\module\upper_comm.h \
-  ..\module\sbus.h ..\module\dvc_motor.h ..\bsp\can_bsp.h \
-  ..\module\dvc_motor.h
+  ..\common\param.h ..\module\upper_comm.h ..\module\dvc_motor.h \
+  ..\bsp\can_bsp.h ..\module\dvc_motor.h
