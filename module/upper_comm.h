@@ -43,9 +43,9 @@ typedef struct
 
 void upper_comm_init(void);
 
-void update_lower2upper_msg(void);
+void send_low_state(void);
 
-void start_rev_upper_msg(void);
+void start_rev_low_cmd(void);
 
 #pragma pack(pop) // restore byte alignment
 

@@ -58,7 +58,7 @@ static uint32_t calc_crc32(const uint8_t *data, uint8_t len)
  * @note  this function should be called before sending lower2upper_msg to upper board.
  * 
  */
-void update_lower2upper_msg(void)
+static void update_lower2upper_msg(void)
 {
   memcpy(&lower2upper_msg.motor_fbs_logical, motor_fbs_logical_ptr, sizeof(MotorFeedbacksLogical));
   lower2upper_msg.crc32 = calc_crc32((uint8_t*)&lower2upper_msg.motor_fbs_logical, sizeof(MotorFeedbacksLogical));
@@ -68,12 +68,18 @@ void update_lower2upper_msg(void)
   lower2upper_msg.tail2 = 0xFF;
 }
 
-void start_rev_upper_msg()
+void send_low_state()
+{
+   update_lower2upper_msg();
+   HAL_UART_Transmit_DMA(&huart7, (uint8_t*)&lower2upper_msg, sizeof(Lower2UpperMsg));
+}
+
+void start_rev_low_cmd()
 {
 	HAL_UARTEx_ReceiveToIdle_DMA(&huart7, rx_buff, UART_BUFF_SIZE*2);
 }
 
-void parse_rx_msg()
+static void parse_rx_msg()
 {
    if (rx_buff[0] == 0xAA && rx_buff[1] == 0xBB && rx_buff[UART_BUFF_SIZE-2] == 0xEE && rx_buff[UART_BUFF_SIZE-1] == 0xFF)
    {
@@ -83,7 +89,7 @@ void parse_rx_msg()
       {
          for (int i = 0; i < MOTOR_NUM_TOTAL; i++)
          {
-            motor_torque_des_ptr[i] = (float)upper2lower_msg.torque_des[i] / 1000.0f;
+            motor_torque_des_ptr[i] = (float)(upper2lower_msg.torque_des[i] / 100000.0);
          }
       }
       else

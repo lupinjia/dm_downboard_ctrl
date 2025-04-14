@@ -84,6 +84,11 @@ static void start_send_motor_cmd()
   HAL_TIM_Base_Start_IT(&htim7);
 }
 
+static void start_send_low_state()
+{
+  HAL_TIM_Base_Start_IT(&htim6);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -128,7 +133,8 @@ int main(void)
 	init_system();
   HAL_Delay(100); // wait for system init
   start_send_motor_cmd();
-	start_spi_comm();
+  start_send_low_state();
+	start_rev_low_cmd();
 
   /* USER CODE END 2 */
 
@@ -208,6 +214,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   if(htim->Instance == TIM7) // 300us period, 900us command period for each motor
   {
     send_motor_cmd();
+  }
+  else if(htim->Instance == TIM6) // 1ms period, send low state
+  {
+    send_low_state();
   }
 }
 
