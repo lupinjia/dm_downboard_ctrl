@@ -21,8 +21,8 @@
 #include "dma.h"
 #include "fdcan.h"
 #include "memorymap.h"
-#include "spi.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -122,7 +122,8 @@ int main(void)
   MX_FDCAN1_Init();
   MX_TIM7_Init();
   MX_FDCAN2_Init();
-  MX_SPI3_Init();
+  MX_UART7_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
 	init_system();
   HAL_Delay(100); // wait for system init
@@ -209,14 +210,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     send_motor_cmd();
   }
 }
-
-//void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-//{
-//  if(GPIO_Pin == GPIO_PIN_9)
-//  {
-//      start_spi_comm();
-//  }
-//}
 
 /* USER CODE END 4 */
 

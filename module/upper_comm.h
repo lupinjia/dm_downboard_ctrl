@@ -11,7 +11,6 @@
 #ifndef __UPPER_COMM_H__
 #define __UPPER_COMM_H__
 
-#include "spi.h"
 #include "dvc_motor.h"
 
 #pragma pack(push, 1) // cancel byte alignment
@@ -40,12 +39,13 @@ typedef struct
   uint8_t tail2;
 }Upper2LowerMsg;
 
+#define UART_BUFF_SIZE 32
 
 void upper_comm_init(void);
 
 void update_lower2upper_msg(void);
 
-void start_spi_comm(void);
+void start_rev_upper_msg(void);
 
 #pragma pack(pop) // restore byte alignment
 

@@ -11,11 +11,13 @@
 #include <string.h>
 #include "upper_comm.h"
 #include "tim.h"
+#include "usart.h"
 
 const static MotorFeedbacksLogical* motor_fbs_logical_ptr = NULL;
 static float* motor_torque_des_ptr = NULL;
 Lower2UpperMsg lower2upper_msg; // message sent to upper board
 Upper2LowerMsg upper2lower_msg; // message received from upper board
+uint8_t rx_buff[UART_BUFF_SIZE];
 
 void upper_comm_init(void)
 {
@@ -66,25 +68,58 @@ void update_lower2upper_msg(void)
   lower2upper_msg.tail2 = 0xFF;
 }
 
-/**
- * @brief Callback function for SPI transmit and receive complete.
- * @note  This function is called when SPI transmit and receive complete, to process received data.
- * @param hspi handle of spi
- */
-void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
+void start_rev_upper_msg()
 {
-	// process rx data
-   for(int i = 0; i < MOTOR_NUM_TOTAL; i++)
-   {
-      motor_torque_des_ptr[i] = (float)(upper2lower_msg.torque_des[i] / 100000.0);
-   }
-	 
-	update_lower2upper_msg();
-	HAL_SPI_TransmitReceive_DMA(&hspi3, (uint8_t*)&lower2upper_msg, (uint8_t*)&upper2lower_msg, sizeof(Lower2UpperMsg));
+	HAL_UARTEx_ReceiveToIdle_DMA(&huart7, rx_buff, UART_BUFF_SIZE*2);
 }
 
-void start_spi_comm()
+void parse_rx_msg()
 {
-	update_lower2upper_msg();
-	HAL_SPI_TransmitReceive_DMA(&hspi3, (uint8_t*)&lower2upper_msg, (uint8_t*)&upper2lower_msg, sizeof(Lower2UpperMsg));
+   if (rx_buff[0] == 0xAA && rx_buff[1] == 0xBB && rx_buff[UART_BUFF_SIZE-2] == 0xEE && rx_buff[UART_BUFF_SIZE-1] == 0xFF)
+   {
+      memcpy(&upper2lower_msg, rx_buff, UART_BUFF_SIZE);
+      uint32_t crc_verfication = calc_crc32((uint8_t*)upper2lower_msg.torque_des, sizeof(int32_t)*MOTOR_NUM_TOTAL);
+      if (crc_verfication == upper2lower_msg.crc32)
+      {
+         for (int i = 0; i < MOTOR_NUM_TOTAL; i++)
+         {
+            motor_torque_des_ptr[i] = (float)upper2lower_msg.torque_des[i] / 1000.0f;
+         }
+      }
+      else
+      {
+         memset(&upper2lower_msg, 0, UART_BUFF_SIZE);
+      }
+   }
+   else
+   {
+      memset(&upper2lower_msg, 0, UART_BUFF_SIZE);
+   }
+}
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef * huart, uint16_t Size)
+{
+
+	if(huart->Instance == UART7)
+	{
+		if (Size <= UART_BUFF_SIZE)
+		{
+			HAL_UARTEx_ReceiveToIdle_DMA(&huart7, rx_buff, UART_BUFF_SIZE*2);
+			parse_rx_msg();
+		}
+		else
+		{
+			HAL_UARTEx_ReceiveToIdle_DMA(&huart7, rx_buff, UART_BUFF_SIZE*2);
+			memset(&upper2lower_msg, 0, UART_BUFF_SIZE);
+		}
+	}
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef * huart)
+{
+	if(huart->Instance == UART7)
+	{
+		HAL_UARTEx_ReceiveToIdle_DMA(&huart7, rx_buff, UART_BUFF_SIZE*2);
+		memset(rx_buff, 0, UART_BUFF_SIZE);	
+	}
 }
