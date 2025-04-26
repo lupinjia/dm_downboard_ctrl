@@ -127,8 +127,8 @@ int main(void)
   MX_FDCAN1_Init();
   MX_TIM7_Init();
   MX_FDCAN2_Init();
-  MX_UART7_Init();
   MX_TIM6_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 	init_system();
   HAL_Delay(100); // wait for system init
