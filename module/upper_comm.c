@@ -18,11 +18,15 @@ static float* motor_torque_des_ptr = NULL;
 Lower2UpperMsg lower2upper_msg; // message sent to upper board
 Upper2LowerMsg upper2lower_msg; // message received from upper board
 uint8_t rx_buff[UART_BUFF_SIZE];
+uint8_t low_cmd_rev_flag = 0; // flag to indicate whether low command is received or not
+uint16_t low_cmd_rev_cnt = 0; // count of low command received
+uint8_t* low_cmd_real_time_flag_ptr = NULL; // pointer to low command real time flag
 
 void upper_comm_init(void)
 {
   motor_fbs_logical_ptr = motor_get_feedbacks_logical();
   motor_torque_des_ptr = motor_get_torque_des();
+  low_cmd_real_time_flag_ptr = motor_get_low_cmd_real_time_flag();
   memset(&lower2upper_msg, 0, sizeof(Lower2UpperMsg));
   memset(&upper2lower_msg, 0, sizeof(Upper2LowerMsg));
 }
@@ -85,11 +89,36 @@ static void parse_rx_msg()
    {
       memcpy(&upper2lower_msg, rx_buff, UART_BUFF_SIZE);
       uint32_t crc_verfication = calc_crc32((uint8_t*)upper2lower_msg.torque_des, sizeof(int32_t)*MOTOR_NUM_TOTAL);
-      if (crc_verfication == upper2lower_msg.crc32)
+      if (crc_verfication == upper2lower_msg.crc32) // receive successfully
       {
-         for (int i = 0; i < MOTOR_NUM_TOTAL; i++)
+         for (int i = 0; i < MOTOR_NUM_TOTAL; i++) // update motor torque des
          {
             motor_torque_des_ptr[i] = (float)(upper2lower_msg.torque_des[i] / 100000.0);
+         }
+         // low cmd real-time evaluation
+         if(low_cmd_rev_flag == 0) // start timer count
+         {
+            low_cmd_rev_flag = 1;
+            __HAL_TIM_SET_COUNTER(&htim13, 0);
+            __HAL_TIM_ENABLE(&htim13);
+         }
+         else if(low_cmd_rev_flag == 1) // stop timer count
+         {
+            low_cmd_rev_flag = 0;
+            low_cmd_rev_cnt = __HAL_TIM_GET_COUNTER(&htim13);
+            if(low_cmd_rev_cnt > 20000) // 20ms timeout
+            {
+               *low_cmd_real_time_flag_ptr = 0; // low command not received in real time
+               for (int i = 0; i < MOTOR_NUM_TOTAL; i++)
+               {
+                  motor_torque_des_ptr[i] = 0.0;
+               }
+            }
+            else
+            {
+               *low_cmd_real_time_flag_ptr = 1; // low command received in real time
+            }
+            __HAL_TIM_DISABLE(&htim13);
          }
       }
       else
@@ -108,10 +137,10 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef * huart, uint16_t Size)
 
 	if(huart->Instance == USART1)
 	{
-		if (Size <= UART_BUFF_SIZE)
+		if (Size == UART_BUFF_SIZE)
 		{
+         parse_rx_msg();
 			HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buff, UART_BUFF_SIZE*2);
-			parse_rx_msg();
 		}
 		else
 		{
@@ -126,6 +155,6 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef * huart)
 	if(huart->Instance == USART1)
 	{
 		HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buff, UART_BUFF_SIZE*2);
-		memset(rx_buff, 0, UART_BUFF_SIZE);	
+		memset(rx_buff, 0, UART_BUFF_SIZE);
 	}
 }

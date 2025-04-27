@@ -26,6 +26,7 @@ float motor_torque_des[MOTOR_NUM_TOTAL] = {0, 0, 0, 0, 0, 0};
 
 MotorFeedbacksLogical motor_fbs_logical;            // int type, data sent to upboard
 MotorFeedbacksLogicalFloat motor_fbs_logical_float; // float type, for processing and debug
+uint8_t low_cmd_real_time_flag = 1; // flag to indicate whether low command is received real-time or not
 
 /**********************Motor Driver Functions **************************/
 
@@ -205,6 +206,11 @@ float* motor_get_torque_des()
   return motor_torque_des;
 }
 
+uint8_t* motor_get_low_cmd_real_time_flag()
+{
+  return &low_cmd_real_time_flag;
+}
+
 /**********************Motor Utility Functions **************************/
 /**
  * @brief   send command to motor, callback for TIM7
@@ -213,12 +219,18 @@ float* motor_get_torque_des()
  */
 void send_motor_cmd()
 {
-  // left leg
-  SetMotorTorque(&FDCAN1_TxFrame, motor_id[can_send_flag-1], motor_torque_des[can_send_flag-1] * motor_direction_mask[can_send_flag-1]);
-  // right leg
-  SetMotorTorque(&FDCAN2_TxFrame, motor_id[can_send_flag-1], motor_torque_des[can_send_flag-1+MOTOR_NUM_PER_LEG] * motor_direction_mask[can_send_flag-1+MOTOR_NUM_PER_LEG]);
-  // SetMotorTorque(&FDCAN1_TxFrame, motor_id[can_send_flag-1], 0.0);
-  // SetMotorTorque(&FDCAN2_TxFrame, motor_id[can_send_flag-1], 0.0);
+  if(low_cmd_real_time_flag == 1)
+  {
+    // left leg
+    SetMotorTorque(&FDCAN1_TxFrame, motor_id[can_send_flag-1], motor_torque_des[can_send_flag-1] * motor_direction_mask[can_send_flag-1]);
+    // right leg
+    SetMotorTorque(&FDCAN2_TxFrame, motor_id[can_send_flag-1], motor_torque_des[can_send_flag-1+MOTOR_NUM_PER_LEG] * motor_direction_mask[can_send_flag-1+MOTOR_NUM_PER_LEG]);
+  }
+  else if(low_cmd_real_time_flag == 0)
+  {
+    SetMotorTorque(&FDCAN1_TxFrame, motor_id[can_send_flag-1], 0.0);
+    SetMotorTorque(&FDCAN2_TxFrame, motor_id[can_send_flag-1], 0.0);
+  }
   switch (can_send_flag) // change id of motor to be sent cmd
   {
     case 1:
