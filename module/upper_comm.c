@@ -80,7 +80,7 @@ void send_low_state()
 
 void start_rev_low_cmd()
 {
-	HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buff, UART_BUFF_SIZE*2);
+	HAL_UART_Receive_DMA(&huart1, rx_buff, UART_BUFF_SIZE);
 }
 
 static void parse_rx_msg()
@@ -132,21 +132,13 @@ static void parse_rx_msg()
    }
 }
 
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef * huart, uint16_t Size)
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
 {
 
 	if(huart->Instance == USART1)
 	{
-		if (Size == UART_BUFF_SIZE)
-		{
-         parse_rx_msg();
-			HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buff, UART_BUFF_SIZE*2);
-		}
-		else
-		{
-			HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buff, UART_BUFF_SIZE*2);
-			memset(&upper2lower_msg, 0, UART_BUFF_SIZE);
-		}
+      parse_rx_msg();
+		HAL_UART_Receive_DMA(&huart1, rx_buff, UART_BUFF_SIZE);
 	}
 }
 
@@ -154,7 +146,7 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef * huart)
 {
 	if(huart->Instance == USART1)
 	{
-		HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buff, UART_BUFF_SIZE*2);
+		HAL_UART_Receive_DMA(&huart1, rx_buff, UART_BUFF_SIZE);
 		memset(rx_buff, 0, UART_BUFF_SIZE);
 	}
 }
