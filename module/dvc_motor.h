@@ -19,6 +19,10 @@
 #define T_MAX  90.0f // max torque of EC-A8112-P1-18 is 90Nm
 #define I_MIN -30.0f
 #define I_MAX  30.0f
+#define KP_MIN 0.0f
+#define KP_MAX 500.0f
+#define KD_MIN 0.0f
+#define KD_MAX 5.0f
 
 #define RPM2RAD 0.10471975511965977
 #define RAD2RPM 9.549296585513721
@@ -63,8 +67,8 @@ typedef struct
 // 4 bytes
 typedef struct
 {
-    int16_t angle;
-    int16_t speed;
+    uint16_t angle;
+    uint16_t speed;
 }MotorFeedbackLogical;
 
 // Integration of MotorFeedbackLogical
@@ -98,7 +102,9 @@ void MotorIDSetting(FDCAN_TxFrame_TypeDef *TxFrame, uint16_t motor_id, uint16_t 
 void MotorCommModeReading(FDCAN_TxFrame_TypeDef *TxFrame, uint16_t motor_id);
 
 const MotorFeedbacksLogical* motor_get_feedbacks_logical();
-float* motor_get_torque_des();
+float* motor_get_pos_des();
+float* motor_get_kp();
+float* motor_get_kd();
 uint8_t* motor_get_low_cmd_real_time_flag();
 void send_motor_cmd();
 

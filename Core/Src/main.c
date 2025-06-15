@@ -18,11 +18,10 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "dma.h"
 #include "fdcan.h"
 #include "memorymap.h"
 #include "tim.h"
-#include "usart.h"
+#include "usb_device.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -32,6 +31,7 @@
 #include "upper_comm.h"
 #include "can_bsp.h"
 #include "dvc_motor.h"
+#include "usbd_cdc_if.h"
 
 /* USER CODE END Includes */
 
@@ -53,7 +53,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-int read_pin = 0;
 
 /* USER CODE END PV */
 
@@ -123,19 +122,18 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_FDCAN1_Init();
   MX_TIM7_Init();
   MX_FDCAN2_Init();
   MX_TIM6_Init();
-  MX_USART1_UART_Init();
   MX_TIM13_Init();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 	init_system();
   HAL_Delay(100); // wait for system init
   start_send_motor_cmd();
   start_send_low_state();
-	start_rev_low_cmd();
+  // low_cmd receiving is in CDC_Receive_HS()
 
   /* USER CODE END 2 */
 
@@ -173,8 +171,9 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 2;
@@ -216,7 +215,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   {
     send_motor_cmd();
   }
-  else if(htim->Instance == TIM6) // 1ms period, send low state
+  else if(htim->Instance == TIM6) // 2ms period, send low state
   {
     send_low_state();
   }

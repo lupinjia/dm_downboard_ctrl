@@ -11,13 +11,16 @@
 #include <string.h>
 #include "upper_comm.h"
 #include "tim.h"
-#include "usart.h"
+#include "usbd_cdc_if.h"
+#include "math_ops.h"
 
 const static MotorFeedbacksLogical* motor_fbs_logical_ptr = NULL;
-static float* motor_torque_des_ptr = NULL;
+static float* motor_pos_des_ptr = NULL;
+static float* motor_kp_ptr = NULL;
+static float* motor_kd_ptr = NULL;
 Lower2UpperMsg lower2upper_msg; // message sent to upper board
 Upper2LowerMsg upper2lower_msg; // message received from upper board
-uint8_t rx_buff[UART_BUFF_SIZE];
+uint8_t rx_buff[UART_RX_BUFF_SIZE];
 uint8_t low_cmd_rev_flag = 0; // flag to indicate whether low command is received or not
 uint16_t low_cmd_rev_cnt = 0; // count of low command received
 uint8_t* low_cmd_real_time_flag_ptr = NULL; // pointer to low command real time flag
@@ -25,7 +28,9 @@ uint8_t* low_cmd_real_time_flag_ptr = NULL; // pointer to low command real time 
 void upper_comm_init(void)
 {
   motor_fbs_logical_ptr = motor_get_feedbacks_logical();
-  motor_torque_des_ptr = motor_get_torque_des();
+  motor_pos_des_ptr = motor_get_pos_des();
+  motor_kp_ptr = motor_get_kp();
+  motor_kd_ptr = motor_get_kd();
   low_cmd_real_time_flag_ptr = motor_get_low_cmd_real_time_flag();
   memset(&lower2upper_msg, 0, sizeof(Lower2UpperMsg));
   memset(&upper2lower_msg, 0, sizeof(Upper2LowerMsg));
@@ -75,26 +80,23 @@ static void update_lower2upper_msg(void)
 void send_low_state()
 {
    update_lower2upper_msg();
-   HAL_UART_Transmit_DMA(&huart1, (uint8_t*)&lower2upper_msg, sizeof(Lower2UpperMsg));
+   CDC_Transmit_HS((uint8_t*)&lower2upper_msg, sizeof(lower2upper_msg));
 }
 
-void start_rev_low_cmd()
+void parse_rx_msg()
 {
-	HAL_UART_Receive_DMA(&huart1, rx_buff, UART_BUFF_SIZE);
-}
-
-static void parse_rx_msg()
-{
-   if (rx_buff[0] == 0xAA && rx_buff[1] == 0xBB && rx_buff[UART_BUFF_SIZE-2] == 0xEE && rx_buff[UART_BUFF_SIZE-1] == 0xFF)
+   if (rx_buff[0] == 0xAA && rx_buff[1] == 0xBB && rx_buff[UART_RX_BUFF_SIZE-2] == 0xEE && rx_buff[UART_RX_BUFF_SIZE-1] == 0xFF)
    {
-      memcpy(&upper2lower_msg, rx_buff, UART_BUFF_SIZE);
-      uint32_t crc_verfication = calc_crc32((uint8_t*)upper2lower_msg.torque_des, sizeof(int32_t)*MOTOR_NUM_TOTAL);
+      memcpy(&upper2lower_msg, rx_buff, UART_RX_BUFF_SIZE);
+      uint32_t crc_verfication = calc_crc32((uint8_t*)upper2lower_msg.pos_des, sizeof(uint16_t)*MOTOR_NUM_TOTAL+4);
       if (crc_verfication == upper2lower_msg.crc32) // receive successfully
       {
          for (int i = 0; i < MOTOR_NUM_TOTAL; i++) // update motor torque des
          {
-            motor_torque_des_ptr[i] = (float)(upper2lower_msg.torque_des[i] / 100000.0);
+            motor_pos_des_ptr[i] = uint_to_float(upper2lower_msg.pos_des[i],POS_MIN,POS_MAX,16);
          }
+         *motor_kp_ptr = uint_to_float(upper2lower_msg.kp, KP_MIN, KP_MAX, 16);
+         *motor_kd_ptr = uint_to_float(upper2lower_msg.kd, KD_MIN, KD_MAX, 16);
          // low cmd real-time evaluation
          if(low_cmd_rev_flag == 0) // start timer count
          {
@@ -109,10 +111,6 @@ static void parse_rx_msg()
             if(low_cmd_rev_cnt > 20000) // 20ms timeout
             {
                *low_cmd_real_time_flag_ptr = 0; // low command not received in real time
-               for (int i = 0; i < MOTOR_NUM_TOTAL; i++)
-               {
-                  motor_torque_des_ptr[i] = 0.0;
-               }
             }
             else
             {
@@ -123,30 +121,11 @@ static void parse_rx_msg()
       }
       else
       {
-         memset(&upper2lower_msg, 0, UART_BUFF_SIZE);
+         memset(&upper2lower_msg, 0, UART_RX_BUFF_SIZE);
       }
    }
    else
    {
-      memset(&upper2lower_msg, 0, UART_BUFF_SIZE);
+      memset(&upper2lower_msg, 0, UART_RX_BUFF_SIZE);
    }
-}
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart)
-{
-
-	if(huart->Instance == USART1)
-	{
-      parse_rx_msg();
-		HAL_UART_Receive_DMA(&huart1, rx_buff, UART_BUFF_SIZE);
-	}
-}
-
-void HAL_UART_ErrorCallback(UART_HandleTypeDef * huart)
-{
-	if(huart->Instance == USART1)
-	{
-		HAL_UART_Receive_DMA(&huart1, rx_buff, UART_BUFF_SIZE);
-		memset(rx_buff, 0, UART_BUFF_SIZE);
-	}
 }
