@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2024 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2024 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -69,7 +69,7 @@ static void MPU_Config(void);
 // get static variable pointers
 static void init_motors()
 {
-	FDCAN_Init();
+  FDCAN_Init();
 }
 
 static void init_system()
@@ -126,10 +126,9 @@ int main(void)
   MX_TIM7_Init();
   MX_FDCAN2_Init();
   MX_TIM6_Init();
-  MX_TIM13_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
-	init_system();
+  init_system();
   HAL_Delay(100); // wait for system init
   start_send_motor_cmd();
   start_send_low_state();
@@ -211,11 +210,11 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  if(htim->Instance == TIM7) // 300us period, 900us command period for each motor
+  if (htim->Instance == TIM7) // 300us period, 900us command period for each motor
   {
     send_motor_cmd();
   }
-  else if(htim->Instance == TIM6) // 2ms period, send low state
+  else if (htim->Instance == TIM6) // 2ms period, send low state
   {
     send_low_state();
   }
