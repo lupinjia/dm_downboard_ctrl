@@ -1,5 +1,5 @@
 /**
- * @file    sbus.c
+ * @file    sbus.c (legacy code, deprecated now)
  * @author  lupinjia(jason_1120202397@163.com)
  * @brief   contains functions used to receive and decode SBUS data from remote controller.
  * @version 1.0
