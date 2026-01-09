@@ -18,12 +18,12 @@ static uint8_t can_send_flag = 1; // choose which id to send cmd
 // to save initial pos of motors
 static uint8_t can_first_rev_flag[MOTOR_NUM_TOTAL] = {1, 1, 1, 1, 1, 1};
 static float motor_physical_initial_angle[MOTOR_NUM_TOTAL] = {0, 0, 0, 0, 0, 0};     // record physical initial angle of motors, for converting physical pos to logical pos
-const static float motor_logical_initial_angle[MOTOR_NUM_TOTAL] = {0.33, 1.3, -1.98, // [rad]
-                                                                   -0.33, 1.3, -1.98};
+const static float motor_logical_initial_angle[MOTOR_NUM_TOTAL] = {0.332, 1.22, -1.98, // [rad]
+                                                                   -0.316, 1.22, -1.98};
 const static int8_t motor_direction_mask[MOTOR_NUM_TOTAL] = {1, 1, 1, 1, -1, -1}; // direction mask, to convert physical pos to logical pos
 
-float motor_pos_des_logical[MOTOR_NUM_TOTAL] = {0.33, 1.3, -1.98, -0.33, 1.3, -1.98};
-float motor_torque_des_logical[MOTOR_NUM_TOTAL] = {0, 0, 0, 0, 0, 0}; // torque des in logical pos
+float motor_pos_des_logical[MOTOR_NUM_TOTAL] = {0.332, 1.22, -1.98, -0.316, 1.22, -1.98};
+float motor_torque_des_logical[MOTOR_NUM_TOTAL] = {0, 0, 0, 0, 0, 0};             // torque des in logical pos
 
 MotorFeedbacksLogical motor_fbs_logical;            // int type, data sent to upboard
 MotorFeedbacksLogicalFloat motor_fbs_logical_float; // float type, for processing and debug
